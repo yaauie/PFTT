@@ -145,13 +145,13 @@ end
 CONFIG = PfttOptions.parse ARGV
 
 # set up our basic test bench factors
-HOSTS = Host::Array.new(Host::All).filter(CONFIG[:hosts][:filters])
-PHPS = PhpBuild::Array.new(CONFIG[:phps][:dir]).filter(CONFIG[:phps][:filters])
-MIDDLEWARES = Middleware::Array.new(Middleware::All).filter(CONFIG[:hosts][:filters])
+$hosts = Host::Array.new(Host::All).filter(CONFIG[:host][:filters])
+$phps = PhpBuild::Array.new.load(CONFIG[:php][:dir]).filter(CONFIG[:phps][:filters])
+$middlewares = Middleware::Array.new(Middleware::All).filter(CONFIG[:middleware][:filters])
 
 case CONFIG[:action]
 when :functional
-  TESTCASES = Phpt::TestCase::Array.new(CONFIG[:phpt])
+  $testcases = Phpt::TestCase::Array.new.load(CONFIG[:phpt])
   require 'bin/functional.rb'
 else
   puts 'An action must be specified: --func[tional] --perf[ormance]'
