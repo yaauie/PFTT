@@ -9,11 +9,11 @@ module Middleware
     #     # ...
     #   end
     # ```
-    self.singleton_class.class_exec do
+    class << self
       def [] key
         ancestors = self.ancestors.to_a
           ancestors.each do |ancestor|
-          next false unless ancestor.singleton_class.respond_to? :filterable
+          next false unless ancestor.respond_to? :filterable
           next false unless ancestor.filterable.has_key? key
           next false unless !ancestor.filterable[key].nil?
           return ancestor.filterable[key]
@@ -38,7 +38,7 @@ module Middleware
     end
 
     # make an easy way to set hierarchihcal ini
-    self.singleton_class.class_exec do
+    class << self
       def ini= config
         @ini = config
       end
@@ -47,8 +47,8 @@ module Middleware
         if inherited
           compiled = PhpIni.new()
           ancestors.reverse_each do |ancestor|
-            next false unless ancestor.singleton_class.respond_to? :ini
-            compiled.configure ancestor.singleton_class.ini(false)
+            next false unless ancestor.respond_to? :ini
+            compiled.configure ancestor.ini(false)
           end
           compiled
         else
