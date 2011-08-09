@@ -1,0 +1,12 @@
+action: inspect
+host:
+  definition-files: config/definitions/host/**/*.rb
+  filters: 
+    local:true
+php:
+  load-path: php-builds/**/*.*
+  filters:
+    platform: windows
+    compiler: vc9
+middleware:
+  definition-files: config/definitions/middleware/**/*.rb
