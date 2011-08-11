@@ -26,7 +26,7 @@ module Middleware
         (filterable)[key]=val
       end
 
-      def requires key, *val
+      def filter key, *val
         self[key] = val
       end
 
@@ -44,7 +44,7 @@ module Middleware
       end
 
       def ini(inherited=true)
-        if inherited
+        if inherited #whether to get full inheritance or just this item.
           compiled = PhpIni.new()
           ancestors.reverse_each do |ancestor|
             next false unless ancestor.respond_to? :ini
@@ -65,25 +65,39 @@ module Middleware
     end
 
     def _deploy_php_bin
-      @deployed_location Host::Local.deploy(php_build.path).to(@host,@host.tmpdir)
+      @deployed_php = Host::Local.deploy(php_build.path).to(@host,@host.tmpdir)
     end
 
-    def undeploy_php_bin
+    def _undeploy_php_bin
       @host.delete( @deployed_location )
     end
 
     def install()
       _deploy_php_bin
+      apply_ini
     end
 
     def uninstall()
       _undeploy_php_bin
+      unset_ini
+    end
+
+    def deploy_script( local_file )
+      @deployed_scripts||=[]
+      @deployed_scripts << Host::Local.deploy( local_file ).to( @host, deploy_path )
+    end
+
+    def undeploy_script()
+      @deployed_scripts.reject! do |script|
+        @host.delete script
+      end
     end
 
     # returns true if the ini was changed.
     # this is so that server-based installs can get restarted.
     # the php_ini should be whatever is *on top* of this class' compiled ini.
-    def apply_ini( php_ini )
+    def apply_ini( php_ini=[] )
+      php_ini << "extension_dir=#{@deployed_php}/ext"
       new_ini = ini.configure ( php_ini || [] )
       if new_ini == current_ini
         return false
@@ -92,11 +106,13 @@ module Middleware
       end
     end
 
+    def unset_ini
+      @current_ini = []
+    end
+
     def current_ini
       @current_ini ||= []
     end
-
-
 
     ini= <<-INI
       output_handler=
