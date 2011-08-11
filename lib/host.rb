@@ -27,8 +27,9 @@ module Host
         o,e,w = Open3.capture3( command, opts )
       end
     end
+    alias :exec_and_wait :exec!
 
-    def exec_and_wait command, opts={}
+    def exec! command, opts={}
       timeout_sec = opts.delete(:timeout)
       timeout timeout_sec do
       timeout timeout_sec do # hackish double-timeout per this bug report http://redmine.ruby-lang.org/issues/4681
