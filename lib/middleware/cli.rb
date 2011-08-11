@@ -1,8 +1,10 @@
 module Middleware
   class Cli < Base
+    instantiable
+
     # MUST return an array like this:
     # 
-    # ["hello world!", status ]
+    # [ status, 'hello, world!' ]
     # 
     def execute_script deployed_script 
       o,e,s = @host.exec_and_wait( [

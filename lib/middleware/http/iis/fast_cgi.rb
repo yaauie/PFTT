@@ -3,6 +3,7 @@ module Middleware
     module IIS
       class FastCgi
         filter :multithreaded, false
+        instantiable
 
         def install
           ret = super

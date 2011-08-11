@@ -3,6 +3,7 @@ module Middleware
     module Apache
       class ModPhp < Base
         filter :multithreaded, true
+        instantiable
 
         def install
           self.instance_exec( @host[:platform]==:windows ? Ctl::Windows : Ctl ){|mod|include mod}

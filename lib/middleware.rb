@@ -30,6 +30,10 @@ module Middleware
         self[key] = val
       end
 
+      def instantiable
+        Middleware::All << self
+      end
+
       protected
 
       def filterable
@@ -148,4 +152,13 @@ module Middleware
     INI
 
   end
+
+  All = TypedArray( Middleware::Base )
 end
+
+# Load up all of our middleware classes right away instead of waiting for the autoloader
+# this way they are actually available in Middleware::All
+# although it technically does not matter the order in which they are loaded (as they will trigger
+# autoload events on missing constants), reverse tends to get shallow before deep and should improve
+# performance, if only marginally.
+Dir.glob File.join( File.dirname(__FILE__), 'middleware/**/*.rb')).reverse_each &method(:require)
