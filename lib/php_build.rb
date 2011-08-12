@@ -15,24 +15,27 @@ class PhpBuild
   def set_buildinfo path
     @buildinfo={}
     parts = File.basename(path).split('-')
-
-    @buildinfo[:platform] = !parts.select{|i| i =~/(Win32|windows)/ }.empty? ? :windows : :linux
     
+    requirement :platform => !parts.select{|i| i =~/(Win32|windows)/ }.empty? ? :windows : :linux
+
     branchinfo = parts.select{|i| i =~ /[0-9]\.[0-9]+/ }.first
-    @buildinfo[:branch] = branchinfo.split('.').first(2).join('.')
-    @buildinfo[:threadsafe] = parts.select{|i| i == 'nts' }.empty?
-    @buildinfo[:revision] = (parts.select{|i| i =~ /r[0-9]+/ }).first
-    @buildinfo[:type] = case
+
+    property :php_branch => branchinfo.split('.').first(2).join('.')
+    property :threadsafe => parts.select{|i| i == 'nts' }.empty?
+    property :revision => (parts.select{|i| i =~ /r[0-9]+/ }).first
+
+    
+    property :type => case
       when branchinfo =~ /RC/          then :release_candidate
-      when !@buildinfo[:revision].nil? then :snap
+      when property(:revision).nil?    then :snap
       when branchinfo =~ /alpha|beta/  then :prerelease
       else :release
     end
-    @buildinfo[:compiler] = (parts.select{|i| i =~ /vc[0-9]+/i }).first.upcase
+    property :compiler => (parts.select{|i| i =~ /vc[0-9]+/i }).first.upcase
 
-    @buildinfo[:version] = [
+    property :version => [
       branchinfo,
-      @buildinfo[:revision]
+      property(:revision)
     ].compact.join('-')
   end
 

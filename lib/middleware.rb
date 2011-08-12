@@ -1,68 +1,17 @@
 module Middleware
   class Base
-    # make it so the class itself can be filtered.
-    # Usage:
-    # ```ruby
-    #   class Middleware::Foo << Middleware::Base
-    #     requires :platform, :posix
-    #     requires :threadsafe, true
-    #     # ...
-    #   end
-    # ```
-    class << self
-      def [] key
-        ancestors = self.ancestors.to_a
-          ancestors.each do |ancestor|
-          next false unless ancestor.respond_to? :filterable
-          next false unless ancestor.filterable.has_key? key
-          next false unless !ancestor.filterable[key].nil?
-          return ancestor.filterable[key]
-        end
-        nil
-        end
-      end
+    
+    include TestBenchFactor
+    include PhpIni::Inheritable
 
-      def []= key, *val
-        (filterable)[key]=val
-      end
-
-      def filter key, *val
-        self[key] = val
-      end
-
-      def instantiable
-        Middleware::All << self
-      end
-
-      protected
-
-      def filterable
-        @filterable ||= Hash[[:multithreaded,:platform].zip([nil])]
-      end
-    end
-
-    # make an easy way to set hierarchihcal ini
-    class << self
-      def ini= config
-        @ini = config
-      end
-
-      def ini(inherited=true)
-        if inherited #whether to get full inheritance or just this item.
-          compiled = PhpIni.new()
-          ancestors.reverse_each do |ancestor|
-            next false unless ancestor.respond_to? :ini
-            compiled.configure ancestor.ini(false)
-          end
-          compiled
-        else
-          @ini || nil
-        end
-      end
+    def ini(arg=nil)
+      ret = super
+      # if we're getting the whole stack, push the extensions_dir to the *top*.
+      PhpIni.new(%Q{extension_dir="#{@deployed_php}/ext"}).configure(ret) if arg.nil?
+      ret
     end
 
     # now start defining our base
-
     def initialize( host, php_build )
       @host = host
       @php_build = php_build
@@ -101,8 +50,8 @@ module Middleware
     # this is so that server-based installs can get restarted.
     # the php_ini should be whatever is *on top* of this class' compiled ini.
     def apply_ini( php_ini=[] )
-      php_ini << "extension_dir=#{@deployed_php}/ext"
-      new_ini = ini.configure ( php_ini || [] )
+      @base_ini ||= @host.ini << self.ini << @php.ini
+      new_ini = @base_ini << ( php_ini || [] )
       if new_ini == current_ini
         return false
       else
@@ -145,10 +94,6 @@ module Middleware
       unicode.script_encoding=UTF-8
       unicode.output_encoding=UTF-8
       unicode.from_error_mode=U_INVALID_SUBSTITUTE
-      ;date.timezone is not in the defaults from run-tests.php,
-      ;but 5.3 test cases require this to be set, and doing so 
-      ;seems to eliminate some failures
-      date.timezone=UTC
     INI
 
   end

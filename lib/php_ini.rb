@@ -19,6 +19,9 @@ class PhpIni
     end
     !changes.zero?
   end
+  # while this isn't strictly kosher, it *does* append a directive like its Array counterpart
+  # and is a lot easier to type.
+  alias :<< :configure
 
   def clone
     PhpIni.new( self )
@@ -121,7 +124,5 @@ class PhpIni
     when :comment
       return 0;
     end
-
-    
   end
 end

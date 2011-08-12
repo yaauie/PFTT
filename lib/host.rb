@@ -3,6 +3,9 @@ require 'Open3'
 
 module Host
   class Base
+    include TestBenchFactor
+    include PhpIni::Inheritable
+
     # ensure we have access to all of them
     def self.new(*args)
       host = super
@@ -27,7 +30,6 @@ module Host
         o,e,w = Open3.capture3( command, opts )
       end
     end
-    alias :exec_and_wait :exec!
 
     def exec! command, opts={}
       timeout_sec = opts.delete(:timeout)
@@ -37,6 +39,7 @@ module Host
       end # end hackish double-timeout
       end
     end
+    alias :exec_and_wait :exec!
 
     def copy( from, to )
       exec "cp #{from} #{to}"
