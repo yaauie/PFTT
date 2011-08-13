@@ -9,8 +9,7 @@ module Host
     # ensure we have access to all of them
     def self.new(*args)
       host = super
-      @@hosts||=[]
-      @@hosts << host
+      Host::All << host
       host
     end
 
@@ -79,4 +78,14 @@ module Host
       command
     end
   end
+
+  require 'typed-array'
+  
+  class Array < TypedArray(Base)
+    # make it filterable
+    include TestBenchFactorArray
+
+  end
+
+  All = Array.new
 end

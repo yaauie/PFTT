@@ -99,9 +99,10 @@ end
 # Include into a TypedArray to add functions that allow us to filter out items that do not
 # match the requirement given. Relies on the contents implementing TestBenchFactors
 # 
-module TestBenchFactor::Array
+module TestBenchFactorArray
   def filter(requirements_hsh)
-    self.select{|factor| factor.meets_requirements? requirements_hsh}
+    return self if requirements_hsh.nil?
+    select{|factor| factor.meets_requirements? requirements_hsh}
   end
   def filter!(requirements_hsh)
     self.replace! self.filter requirements_hsh

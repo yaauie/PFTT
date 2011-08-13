@@ -1,9 +1,23 @@
 class PhpBuild
   include TestBenchFactor
+  include PhpIni::Inheritable
+
+  def self.get_set(*globs)
+    puts globs.inspect
+    set = Class.new(TypedArray( self )){include TestBenchFactorArray}.new
+    puts 'loading!'
+    globs.each do |glob|
+      Dir.glob( glob ) do |php|
+        puts 'i found one!'
+        set << PhpBuild.new( php )
+      end
+    end
+    set
+  end
 
   def initialize path, hsh={}
-    set_buildinfo( path )
     @php_path = path
+    determine_properties_and_requirements
   end
 
   def [](k)
@@ -12,9 +26,8 @@ class PhpBuild
 
   protected
 
-  def set_buildinfo path
-    @buildinfo={}
-    parts = File.basename(path).split('-')
+  def determine_properties_and_requirements
+    parts = File.basename(@php_path).split('-')
     
     requirement :platform => !parts.select{|i| i =~/(Win32|windows)/ }.empty? ? :windows : :linux
 
@@ -43,7 +56,10 @@ class PhpBuild
     File.basename(@php_path)
   end
 
-  def base_ini
-    PhpIni.new 'date.timezone=GMT',"extension_dir=\"#{File.join( @php_path, 'ext' )}\""
-  end
+  ini <<-INI
+    ;date.timezone is not in the defaults from run-tests.php,
+    ;but 5.3 test cases require this to be set, and doing so 
+    ;seems to eliminate some failures
+    date.timezone=UTC
+  INI
 end

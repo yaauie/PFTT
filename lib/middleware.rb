@@ -4,6 +4,10 @@ module Middleware
     include TestBenchFactor
     include PhpIni::Inheritable
 
+    def self.instantiable
+      All << self
+    end
+
     def ini(arg=nil)
       ret = super
       # if we're getting the whole stack, push the extensions_dir to the *top*.
@@ -98,7 +102,7 @@ module Middleware
 
   end
 
-  All = TypedArray( Middleware::Base )
+  All = (Class.new(TypedArray( Class )){include TestBenchFactorArray}).new #awkward, but it works.
 end
 
 # Load up all of our middleware classes right away instead of waiting for the autoloader
@@ -106,4 +110,4 @@ end
 # although it technically does not matter the order in which they are loaded (as they will trigger
 # autoload events on missing constants), reverse tends to get shallow before deep and should improve
 # performance, if only marginally.
-Dir.glob File.join( File.dirname(__FILE__), 'middleware/**/*.rb')).reverse_each &method(:require)
+Dir.glob(File.join( File.dirname(__FILE__), 'middleware/**/*.rb')).reverse_each &method(:require)

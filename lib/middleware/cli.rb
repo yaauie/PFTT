@@ -14,9 +14,9 @@ module Middleware
         ].flatten.compact.join(' '),
         {:timeout=>30} # register disinterest. 
       )
-      s.success?,( o + e )
+      [s.success?,( o + e )]
     rescue Timeout::Error
-      false, 'operation timed out.'
+      [false, 'operation timed out.']
     end
 
     def deploy_path

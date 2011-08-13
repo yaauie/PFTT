@@ -1,7 +1,7 @@
 $: << 'lib'
 require 'monkeypatch/string/unindent.rb'
 
-module PhpIni
+class PhpIni
   module Inheritable
 
     # this is *very* overloaded.

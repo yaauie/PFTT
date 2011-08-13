@@ -4,7 +4,7 @@ host:
   filters: 
     local:true
 php:
-  load-path: php-builds/**/*.*
+  dir: php-builds/**/*.*
   filters:
     platform: windows
     compiler: vc9

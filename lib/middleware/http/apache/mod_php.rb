@@ -2,7 +2,7 @@ module Middleware
   module Http
     module Apache
       class ModPhp < Base
-        filter :multithreaded, true
+        requirement :threadsafe => true
         instantiable
 
         def install

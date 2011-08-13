@@ -1,7 +1,8 @@
 #bootstrap.rb
 require 'active_support/dependencies'
 
-libdir = File.join( File.dirname(__FILE__), 'lib' )
+APPROOT = File.absolute_path( File.dirname( __FILE__ ) ) 
+libdir = File.join( APPROOT, 'lib' )
 ActiveSupport::Dependencies.autoload_paths << libdir
 $: << libdir
 
@@ -10,13 +11,15 @@ require 'optparse'
 require 'pp'
 
 class PfttOptions
-  APPROOT = "../"
+  
   def self.parse(args)
     default_config_file = "#{APPROOT}/config/default.yaml"
-    options = YAML::load( default_config_file ) unless !File.exists?( default_config_file )
-    options ||={}
-
-
+    puts default_config_file
+    puts File.exists? default_config_file
+    options = OptionsHash.new
+    #puts YAML::load( default_config_file ).inspect
+    options.replace(YAML::load( File.open(default_config_file) )) unless !File.exists?( default_config_file )
+    puts options.inspect
     opts = OptionParser.new do |opts|
       opts.banner = "Usage: #{__FILE__} [options]"
 
@@ -25,8 +28,6 @@ class PfttOptions
 
       opts.on(
         '--func[tional]',
-        '--func',
-        '--functional',
         'Run functional tests with configuration'
       ) do
         options[:action] = :functional
@@ -34,8 +35,6 @@ class PfttOptions
 
       opts.on(
         '--perf[ormance]',
-        '--perf',
-        '--performance',
         'Run performance tests with configuration'
       ) do
         options[:action] = :functional
@@ -53,7 +52,7 @@ class PfttOptions
         '--clear',
         'Clear the loaded configuration entirely. Helpful for scenarios in which you do not want to use the default configuration, or want to clear out a particular setting.'
       ) do
-        options = Hash.new()
+        options.clear
       end
 
       opts.on( 
@@ -68,8 +67,7 @@ class PfttOptions
         '--php-dir DIRECTORY', 
         'set the directory in which to look for php builds'
       ) do |php_dir|
-        options[:php]||={}
-        options[:php][:dir] = php_dir
+        options[:php,:dir] = php_dir
       end
 
       opts.on( 
@@ -77,30 +75,24 @@ class PfttOptions
         Array, 
         'Only include PHP Builds whose compiler matches'
       ) do |php_compilers|
-        options[:php]||={}
-        options[:php][:filters] ||= {}
-        options[:php][:filters][:compiler]||= []
-        options[:php][:filters][:compiler].concat php_compilers
+        options[:php,:filters,:compiler]||= []
+        options[:php,:filters,:compiler].concat php_compilers
       end
 
       opts.on( 
         '--php-version <PHPVERSION>[,<PHP_VERSION>]',
         Array
       ) do |php_versions|
-        options[:php]||={}
-        options[:php][:filters] ||= {}
-        options[:php][:filters][:version]||= []
-        options[:php][:filters][:version].concat php_versions
+        options[:php,:filters,:version]||= []
+        options[:php,:filters,:version].concat php_versions
       end
 
       opts.on( 
         '--platform <PLATOFRM>[,<PLATFORM>]',
         Array
       ) do |platforms|
-        options[:php]||={}
-        options[:php][:filters] ||= {}
-        options[:php][:filters][:platform]||= []
-        options[:php][:filters][:platform].concat platforms
+        options[:php,:filters,:platform]||= []
+        options[:php,:filters,:platform].concat platforms
       end
 
       opts.on( 
@@ -145,14 +137,20 @@ end
 CONFIG = PfttOptions.parse ARGV
 
 # set up our basic test bench factors
-$hosts = Host::Array.new(Host::All).filter(CONFIG[:host][:filters])
-$phps = PhpBuild::Array.new.load(CONFIG[:php][:dir]).filter(CONFIG[:phps][:filters])
-$middlewares = Middleware::Array.new(Middleware::All).filter(CONFIG[:middleware][:filters])
+$hosts = (Host::All).filter(CONFIG[:host,:filters])
+require 'typed-array'
+$phps = PhpBuild.get_set(CONFIG[:php,:dir]||'').filter(CONFIG[:phps,:filters])
+$middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
 
-case CONFIG[:action]
-when :functional
+
+case CONFIG[:action].to_s
+when 'functional'
   $testcases = Phpt::TestCase::Array.new.load(CONFIG[:phpt])
   require 'bin/functional.rb'
+when 'inspect'
+  puts $hosts
+  puts $phps
+  puts $middlewares
 else
   puts 'An action must be specified: --func[tional] --perf[ormance]'
   exit

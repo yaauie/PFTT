@@ -1,8 +1,8 @@
 module Middleware
   module Http
     module IIS
-      class FastCgi
-        filter :multithreaded, false
+      class FastCgi < Base
+        requirement :threadsafe => false
         instantiable
 
         def install
