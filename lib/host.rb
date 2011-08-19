@@ -77,6 +77,10 @@ module Host
     def _wrap( command )
       command
     end
+
+    protected
+
+    def define
   end
 
   require 'typed-array'
@@ -85,6 +89,18 @@ module Host
     # make it filterable
     include TestBenchFactorArray
 
+
+    def load( path )
+      config = Hash.new
+      if File.directory? path
+        Dir.glob( File.join( path, '**', '*.yaml' ) ) do |file|
+          config[File.basename( file, '.yaml' )]= YAML::load( File.open file )
+        end
+      else
+        config.merge! YAML::load( File.open file )
+      end
+      config.each_pair{|name,spec| Host::Generate( name, spec )}
+    end
   end
 
   All = Array.new

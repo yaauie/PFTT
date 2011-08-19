@@ -1,3 +1,4 @@
+require 'monkeypatch/string/unindent.rb'
 module Middleware
   class Base
     
@@ -100,6 +101,14 @@ module Middleware
       unicode.from_error_mode=U_INVALID_SUBSTITUTE
     INI
 
+
+    def get_info
+      # Borrowed logic from run-tests.php's write_information function. 
+      # Deploy a script and execute it to get a better idea of which scripts are to be tested.
+      php_info_script = <<-PHPINFO.unindent
+        
+      PHPINFO
+    end
   end
 
   All = (Class.new(TypedArray( Class )){include TestBenchFactorArray}).new #awkward, but it works.

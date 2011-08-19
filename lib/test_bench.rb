@@ -12,10 +12,12 @@ class TestBench
   # See TestBenchFactor::compatible? for conventions on how these are defined.
   # 
   def compatible?
-    [php,host,middleware].permutation(2) do |factor1,factor2|
-      return false if factor1.compatible_with? factor2
+    catch(:compatibility) do
+      [php,host,middleware].permutation(2) do |factor1,factor2|
+        throw :compatibility false unless factor1.meets_requirements? factor2
+      end
+      throw :compatibility, true
     end
-    return true
   end
 
   attr_reader :php, :host, :middleware
