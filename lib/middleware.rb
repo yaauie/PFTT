@@ -17,9 +17,10 @@ module Middleware
     end
 
     # now start defining our base
-    def initialize( host, php_build )
+    def initialize( host, php_build, *contexts )
       @host = host
       @php_build = php_build
+      @contexts = contexts.each{|context_klass| context_klass.new( host, self, php_build )}
     end
 
     def _deploy_php_bin
@@ -32,11 +33,13 @@ module Middleware
 
     def install()
       _deploy_php_bin
+      @contexts.each{|context| context.up }
       apply_ini
     end
 
     def uninstall()
       _undeploy_php_bin
+      @contexts.reverse_each{|context| context.down }
       unset_ini
     end
 
@@ -55,13 +58,23 @@ module Middleware
     # this is so that server-based installs can get restarted.
     # the php_ini should be whatever is *on top* of this class' compiled ini.
     def apply_ini( php_ini=[] )
-      @base_ini ||= @host.ini << self.ini << @php.ini
-      new_ini = @base_ini << ( php_ini || [] )
+      new_ini = base_ini << ( php_ini || [] )
       if new_ini == current_ini
         return false
       else
         @current_ini = new_ini
       end
+    end
+
+    # the base_ini is the culumnation of all applied ini in middleware, host, php, and contexts.
+    def base_ini
+      if @base_ini.nil?
+        @base_ini = PhpIni.new()
+        [@host,self,@php,@contexts].flatten.each do |factor|
+          @base_ini << factor.ini
+        end
+      end
+      PhpIni.new @base_ini
     end
 
     def unset_ini
@@ -72,7 +85,7 @@ module Middleware
       @current_ini ||= []
     end
 
-    ini= <<-INI
+    ini <<-INI
       output_handler=
       open_basedir=
       safe_mode=0
@@ -101,14 +114,6 @@ module Middleware
       unicode.from_error_mode=U_INVALID_SUBSTITUTE
     INI
 
-
-    def get_info
-      # Borrowed logic from run-tests.php's write_information function. 
-      # Deploy a script and execute it to get a better idea of which scripts are to be tested.
-      php_info_script = <<-PHPINFO.unindent
-        
-      PHPINFO
-    end
   end
 
   All = (Class.new(TypedArray( Class )){include TestBenchFactorArray}).new #awkward, but it works.
