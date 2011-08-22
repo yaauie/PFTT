@@ -111,6 +111,14 @@ class PfttOptions
         options[:middleware].concat middlewares
       end
 
+      opts.on(
+        '--context-fs <CONTEXT>[,<CONTEXT>[,...]]',
+        Array
+      ) do |fs_context|
+        options[:contexts,:fs,:filters]||=[]
+        options[:contexts,:fs,:filters] << {:name => fs_context }
+      end
+
       opts.on( 
         '--phpt-tests <glob>[,<glob>[,...]]',
         Array
@@ -141,7 +149,8 @@ $hosts = (Host::All).filter(CONFIG[:host,:filters])
 require 'typed-array'
 $phps = PhpBuild.get_set(CONFIG[:php,:dir]||'').filter(CONFIG[:phps,:filters])
 $middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
-
+$fs_contexts = Context::Filesystem::All.filter(CONFIG[:context,:filesystem,:filters])
+$cache_contexts = Context::Filesystem::All.filter(CONFIG[:context,:cache,:filters])
 
 case CONFIG[:action].to_s
 when 'functional'

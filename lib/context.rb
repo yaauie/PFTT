@@ -18,5 +18,9 @@ module Context
     def down
       # do what needs to be done on teardown
     end
+
+    def self.instantiable
+      All << self
+    end
   end
 end

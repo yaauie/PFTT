@@ -9,5 +9,7 @@ module Context
         # nothing to do.
       end
     end
+
+    All = (Class.new(TypedArray( Class )){include TestBenchFactorArray}).new #awkward, but it works.
   end
 end
