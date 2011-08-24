@@ -6,3 +6,5 @@ gem 'activesupport'
 gem 'i18n' # required by ActiveSupport but bundler fails to see that dependency
 
 gem 'typed-array'
+gem 'net-ssh'
+gem 'net-sftp'
