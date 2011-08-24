@@ -71,16 +71,37 @@ class PhptTestCase
     !(parts.keys - @@supported_sections.values.flatten).length.zero?
   end
 
-  def get_section( section )
+  def []( section )
     return parts[section] || nil
   end
 
   def save_section( section, path, extension=section.to_s )
     fullpath = File.join( path, "#{name}.#{extension}")
     File.open fullpath, 'w' do |file|
-      file.write get_section section
+      file.write self[section]
     end
     fullpath
+  end
+
+  def expand
+    @local_files = Hash.new
+    path = File.dirname @phpt_path
+    { 
+      :file => 'php'
+      :skipif => 'skipif.php'
+      :clean => 'clean.php'
+    }.each_pair |key,ext| do
+      @local_files[key]= save_section(key, path, ext) if parts.has_key? key
+    end
+  end
+
+  def files
+    # TODO: supporting files:
+    # scenario 1: options[:support_files]
+
+    # scenario 2: folder with same name as this test case
+
+    # scenario 3: all folders alongside this and all files that are not phpt files
   end
 
   def attach_result( result )
@@ -105,6 +126,16 @@ class PhptTestCase
         @parts[section]=''
       else
         @parts[section] += parse_line line, File.dirname( @phpt_path )
+      end
+    end
+
+    if @parts.has_key? :fileeof
+      @parts[:file]=@parts.delete(:fileeof).gsub(/\r?\n\Z/,'')
+    elsif @parts.has_key? :file_external
+      context = File.dirname( @phpt_path )
+      external_file = File.absolute_path( @parts.delete(:file_external).gsub(/\r?\n\Z/,''), context ) 
+      @parts[:file]= IO.read( external_file ).lines do |line|
+        parse_line line, context
       end
     end
   end
