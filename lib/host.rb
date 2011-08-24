@@ -1,86 +1,79 @@
-require 'timeout'
 require 'Open3'
 
 module Host
+  def Factory( options )
+    (Host.hosts[options.delete(type)||:local]).new options
+  end
+
+  def self.hosts
+    @@hosts||={}
+  end
+
   class Base
     include TestBenchFactor
     include PhpIni::Inheritable
 
-    # ensure we have access to all of them
-    def self.new(*args)
-      host = super
-      Host::All << host
-      host
-    end
-
-    def [](property)
-      @properties[property.to_sym]
-    end
-
-    def initialize(properties={})
-      @properties = properties.dup
-    end
-
-    def exec command, opts={}
-      # wrap the command
-      command = _wrap command
-
-      watcher = Thread.start do
-        o,e,w = Open3.capture3( command, opts )
+    def initialize opts={}
+      #set the opts as properties in the TestBenchFactor sense
+      opts.each_pair do |key,value|
+        property key => value
       end
     end
 
-    def exec! command, opts={}
-      timeout_sec = opts.delete(:timeout)
-      timeout timeout_sec do
-      timeout timeout_sec do # hackish double-timeout per this bug report http://redmine.ruby-lang.org/issues/4681
-          o,e,w = exec( command, opts ).value
-      end # end hackish double-timeout
+    def exec! *args
+      exec(*args).value
+    end
+
+    def posix?
+      @posix ||= self.properties[:platform] == :posix
+    end
+
+    # caching this is dangerous, since we can change this pretty easily with exec,
+    # but because we have to shell out *every time* we want to get this, it needs to
+    # be cached somehow.
+    def cwd 
+      @cwd ||= [case
+      when posix? then exec!('pwd')[0]
+      else exec!(%Q{CMD /C ECHO %CD%})[0].gsub(/\r?\n\Z/,'')
+      end]
+      @cwd.last
+    end
+
+    def delete glob_or_path
+      glob( glob_or_path ) do |path|
+        raise Exception unless sane? path
+        if directory? path
+          exec! case
+          when posix? then %Q{rm -rf "#{path}"}
+          else %Q{CMD /C RMDIR /S /Q "#{path}"}
+          end
+        end
+        _delete path #implementation specific
       end
     end
-    alias :exec_and_wait :exec!
 
-    def copy( from, to )
-      exec "cp #{from} #{to}"
+    def mkdir path
+      parent = File.dirname path
+      mkdir parent unless directory? parent
+      _mkdir path
     end
 
-    def move( from, to )
-      exec "mv #{from} #{to}"
+    def sane? path
+      insane = case
+      when posix?
+        /\A\/(bin|var|etc|dev|Windows)\Z/
+      else
+        /\AC:(\/(Windows)?)?\Z/
+      end =~ File.absolute_path( path, cwd )
+      !insane
     end
 
-    def delete( path )
-      case path
-      when /\A(\/(bin|var|etc|dev)?)\Z/
-        raise Exception, "cannot delete #{path}"
-      else 
-        exec "rm -rf path"
+    class << self
+      # create a way for a class to register itself as instantiable by the Factory function
+      def instantiable name
+        Host.hosts[:name] = self
       end
     end
-
-    def mkdir( path )
-      exec "mkdir -p #{path}"
-    end
-
-    # returns Host::FileCopyProxy
-    def deploy(file)
-      Host::FileCopyProxy(self,file)
-    end
-
-    def _tar( file_or_dir, compress=false )
-      "tar -c#{ compress ? 'z' : ''} #{file_or_dir}"
-    end
-
-    def _untar( path, decompress=false )
-      "tar -C #{path} -x#{ compress ? 'z' : ''}"
-    end
-
-    def _wrap( command )
-      command
-    end
-
-    protected
-
-    def define
   end
 
   require 'typed-array'
@@ -102,6 +95,4 @@ module Host
       config.each_pair{|name,spec| Host::Generate( name, spec )}
     end
   end
-
-  All = Array.new
 end
