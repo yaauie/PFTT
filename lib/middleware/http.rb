@@ -4,7 +4,7 @@ module Middleware
     class Base < Base
       property :interface => 'http'
 
-      def execute_script deployed_script
+      def execute_php_script deployed_script
         url = translate_path deployed_script
         response = Net::HTTP.get_response( @host.address, File.relative_path( deployed_script, docroot ) )
 

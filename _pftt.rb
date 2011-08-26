@@ -156,7 +156,7 @@ case CONFIG[:action].to_s
 when 'functional'
   $testcases = PhptTestCase::Array.new.load(CONFIG[:phpt])
   puts $testcases.map{|i|i.inspect} ;
-  exit
+  TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
   require 'bin/functional.rb'
 when 'inspect'
   puts 'HOSTS:'

@@ -22,10 +22,10 @@ module Host
       exist?(path) && File.directory?(path)
     end
 
-    def open_file path, &block
-      File.open path, &block
+    def open_file path, flags='r', &block
+      File.open path, flags, &block
     end
-
+    
     # list the immediate children of the given path
     def list path
       Dir.entries( dir ).map do |entry|

@@ -6,6 +6,7 @@ class PhpBuild
     set = Class.new(TypedArray( self )){include TestBenchFactorArray}.new
     globs.each do |glob|
       Dir.glob( glob ) do |php|
+        next if php.end_with? '.zip'
         set << PhpBuild.new( php )
       end
     end
@@ -13,20 +14,22 @@ class PhpBuild
   end
 
   def initialize path, hsh={}
-    @php_path = path
+    @path = path
+    puts path
     determine_properties_and_requirements
   end
+  attr_reader :path
 
   def [](k)
-    @buildinfo[k.to_sym]
+    properties.merge(requirements)[k]
   end
 
   protected
 
   def determine_properties_and_requirements
-    parts = File.basename(@php_path).split('-')
+    parts = File.basename(path).split('-')
     
-    requirement :platform => !parts.select{|i| i =~/(Win32|windows)/ }.empty? ? :windows : :linux
+    requirement :platform => !parts.select{|i| i =~/(Win32|windows)/ }.empty? ? :windows : :posix
 
     branchinfo = parts.select{|i| i =~ /[0-9]\.[0-9]+/ }.first
 
@@ -51,7 +54,7 @@ class PhpBuild
   end
 
   def to_s
-    File.basename(@php_path)
+    File.basename(path)
   end
 
   ini <<-INI

@@ -1,10 +1,13 @@
 module TestBench
   class Base
-    def initialize( php_build, host, middleware )
+    def initialize( php_build, host, middleware, *contexts )
       @php = php_build
       @host = host
-      @middleware = middleware
+      @middleware = middleware.new( host, php, *contexts )
+      @contexts = contexts # an array of arrays, each of which contains one type
     end
+
+    attr_reader :php, :host, :middleware, :contexts
 
     # 
     # Test each of the supplied factors to see if they are compatible with the others.
@@ -14,8 +17,8 @@ module TestBench
     # 
     def compatible?
       catch(:compatibility) do
-        [php,host,middleware].permutation(2) do |factor1,factor2|
-          throw :compatibility false unless factor1.meets_requirements? factor2
+        [php,host,middleware,*contexts].permutation(2) do |factor1,factor2|
+          throw :compatibility, false unless factor1.meets_requirements_of? factor2
         end
         throw :compatibility, true
       end
@@ -31,13 +34,13 @@ module TestBench
     # becomes -> (test_bench.middleware).call_script( (test_bench.php), (test_bench.host), 'foo.php' )
     #
     [
-      :install!,
-      :uninstall!,
+      :install,
+      :uninstall,
       :apply_ini,
       :call_script,
     ].compact.each do |method_name|
       define_method method_name do |*args,&block|
-        return middleware.method(method_name).call( php, host, *args, &block )
+        return @middleware.method(method_name).call( *args, &block )
       end
     end
 
@@ -55,22 +58,21 @@ module TestBench
       # 
       # 
       # 
-      def iterate( *args, &block )
-        php_builds, hosts, middlewares = args.shift(3)
-        results = []
-        php_builds.product hosts, middlewares do |php,host,middleware|
+      def iterate( *factors, test_cases )
+        results = self.results_array.new()
+        factors.shift.product *factors do |php,host,middleware,*contexts|
+          puts ({:php=>php,:host=>host,:middleware=>middleware,:contexts => contexts}.inspect)
           begin
-            test_bench = TestBench.new( php, host, middleware )
+            test_bench = self.new( php, host, middleware, *contexts )
             
             #skip this test bench if its components are not compatible.
             next unless test_bench.compatible?
-            
-            test_bench.install!
 
-            result = (yield *args)
-            results << result unless result.nil?
-          ensure
-            test_bench.uninstall!
+            test_bench.install
+            
+            results.concat test_bench.run test_cases
+          #ensure
+            test_bench.uninstall
           end
         end
         results

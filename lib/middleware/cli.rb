@@ -3,18 +3,32 @@ module Middleware
     instantiable
     property :interface => 'cli'
 
+    def initialize *args
+      self.docroot = '/pftt-scripts'
+      puts self.docroot.inspect
+      super
+    end
+
+    def php_binary
+      File.join( @deployed_php, case @host.properties['platform'].to_sym
+      when :windows then 'php.exe'
+      when :posix then 'php'
+      end)
+    end
+
     # MUST return an array like this:
     # 
     # [ status, 'hello, world!' ]
     # 
-    def execute_script deployed_script 
-      o,e,s = @host.exec_and_wait( [
+    def execute_php_script deployed_script 
+      o,e,s = @host.exec!( [
             self.php_binary,
-          @current_ini.to_a.map{|directive| "-d #{directive}"},
+          current_ini.to_a.map{|directive| "-d #{directive}"},
           File.join( docroot, deployed_script )
         ].flatten.compact.join(' '),
-        {:timeout=>30} # register disinterest. 
+        #{:timeout=>30} # register disinterest. 
       )
+      puts o
       [s.success?,( o + e )]
     rescue Timeout::Error
       [false, 'operation timed out.']

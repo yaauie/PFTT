@@ -9,13 +9,15 @@ class PhpIni
   end
 
   def configure( ini )
-    changes = case
-    when ini.nil? then 0
+    changes = 0
+    changes += case
+    when ini.nil? || !ini then 0
     when ini.kind_of?(self.class) then _configure ini.tokens
     when ini.kind_of?(Array)      then _configure _tokenize ini
     when ini.kind_of?(String)
       ini = File.open( ini[1 .. ini.length], 'rb').read if ini.start_with? '@'
       _configure _tokenize ini.split(/\r?\n/)
+    else raise Exception, %Q{ini:#{ini.inspect}}  
     end
     !changes.zero?
   end

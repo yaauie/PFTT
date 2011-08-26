@@ -97,8 +97,8 @@ module Host
       end
     end
 
-    def open_file path, &block
-      sftp.file.open path, &block
+    def open_file path, flags='r',&block
+      sftp.file.open path, flags, &block
     end
 
     def upload local_file, remote_path

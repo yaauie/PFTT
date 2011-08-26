@@ -9,6 +9,8 @@ module Middleware
       All << self
     end
 
+    attr_accessor :docroot
+
     def ini(arg=nil)
       ret = super
       # if we're getting the whole stack, push the extensions_dir to the *top*.
@@ -24,11 +26,15 @@ module Middleware
     end
 
     def _deploy_php_bin
-      @deployed_php = Host::Local.deploy(php_build.path).to(@host,@host.tmpdir)
+      @deployed_php ||= File.join('/pftt-phps',@php_build[:version])
+      puts "uploading..."
+      @host.upload(@php_build.path,@deployed_php) unless @host.exist? @deployed_php
+      puts "uploaded!"
+      @deployed_php 
     end
 
     def _undeploy_php_bin
-      @host.delete( @deployed_location )
+      #@host.delete( @deployed_php )
     end
 
     def install()
@@ -45,7 +51,7 @@ module Middleware
 
     def deploy_script( local_file )
       @deployed_scripts||=[]
-      @deployed_scripts << Host::Local.deploy( local_file ).to( @host, deploy_path )
+      @deployed_scripts << @host.deploy( local_file, deploy_path )
     end
 
     def undeploy_script()
@@ -71,6 +77,7 @@ module Middleware
       if @base_ini.nil?
         @base_ini = PhpIni.new()
         [@host,self,@php,@contexts].flatten.each do |factor|
+          next unless factor.respond_to? :ini
           @base_ini << factor.ini
         end
       end

@@ -83,16 +83,12 @@ class PhptTestCase
     fullpath
   end
 
-  def expand
-    @local_files = Hash.new
-    path = File.dirname @phpt_path
-    { 
+  def extension
+    {
       :file => 'php',
       :skipif => 'skipif.php',
       :clean => 'clean.php'
-    }.each_pair do |key,ext|
-      @local_files[key]= save_section(key, path, ext) if parts.has_key? key
-    end
+    }
   end
 
   def files
