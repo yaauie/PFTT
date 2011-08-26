@@ -85,14 +85,16 @@ module Host
 
     def load( path )
       config = Hash.new
+      return self unless File.exist? path
       if File.directory? path
         Dir.glob( File.join( path, '**', '*.yaml' ) ) do |file|
           config[File.basename( file, '.yaml' )]= YAML::load( File.open file )
         end
       else
-        config.merge! YAML::load( File.open file )
+        config.merge! YAML::load( File.open path )
       end
       config.each_pair{|name,spec| Host::Generate( name, spec )}
+      self
     end
   end
 end

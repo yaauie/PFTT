@@ -16,7 +16,7 @@ module TestBench
           test.expand
           deployed = Hash.new
           test.files.each_pair do |key,local_item|
-            deployed[key] = Host::Local.deploy( local_item ).to(@host, @middleware.docroot )
+            deployed[key] = @host.deploy( local_item, @middleware.docroot )
           end
 
           # catch the result here
@@ -43,7 +43,7 @@ module TestBench
           # take the caught result and build the proper object out of it
           next result.shift.new( test, self, *result )
         ensure
-          Host::Local.delete test.files.values
+          test.files.values.each {|file| File.delete file }
           @host.delete deployed.values.flatten unless CONFIG[:skip_cleanup]
         end
       end

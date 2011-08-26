@@ -138,12 +138,12 @@ end
 CONFIG = PfttOptions.parse ARGV
 
 # set up our basic test bench factors
-$hosts = (Host::All).filter(CONFIG[:host,:filters])
+$hosts = (Host::Array.new.load(CONFIG[:host,:path])).filter(CONFIG[:host,:filters])
 require 'typed-array'
 $phps = PhpBuild.get_set(CONFIG[:php,:dir]||'').filter(CONFIG[:phps,:filters])
 $middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
-$fs_contexts = Context::Filesystem::All.filter(CONFIG[:context,:filesystem,:filters])
-$cache_contexts = Context::Filesystem::All.filter(CONFIG[:context,:cache,:filters])
+$fs_contexts = Context::FileSystem::All.filter(CONFIG[:context,:filesystem,:filters])
+$cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 
 case CONFIG[:action].to_s
 when 'functional'

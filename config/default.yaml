@@ -1,6 +1,6 @@
 action: inspect
 host:
-  definition-files: config/definitions/host/**/*.rb
+  path: config/definitions/host/
   filters: 
     local:true
 php:
