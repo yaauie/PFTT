@@ -20,7 +20,7 @@ module Host
       _get_item(path).keys
     end
 
-    def glob spec &block
+    def glob spec, &block
       spec = spec.chop if path.end_with? '/'
       results = [] unless block_given?
 

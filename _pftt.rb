@@ -7,12 +7,10 @@ class PfttOptions
   
   def self.parse(args)
     default_config_file = "#{APPROOT}/config/default.yaml"
-    puts default_config_file
-    puts File.exists? default_config_file
     options = OptionsHash.new
     #puts YAML::load( default_config_file ).inspect
     options.replace(YAML::load( File.open(default_config_file) )) unless !File.exists?( default_config_file )
-    puts options.inspect
+    
     opts = OptionParser.new do |opts|
       opts.banner = "Usage: #{__FILE__} [options]"
 
@@ -73,6 +71,14 @@ class PfttOptions
       end
 
       opts.on( 
+        '--php-threadsafe <THREADSAFETY>', 
+        TrueClass, 
+        'Only include PHP Builds whose threadsafety-ness matches'
+      ) do |threadsafety|
+        options[:php,:filters,:threadsafe] = threadsafety
+      end
+
+      opts.on( 
         '--php-version <PHPVERSION>[,<PHP_VERSION>]',
         Array
       ) do |php_versions|
@@ -117,6 +123,7 @@ class PfttOptions
         Array
       ) do |test_globs|
         options[:phpt]||=[]
+        options[:phpt] = [options[:phpt]] unless options[:phpt].is_a? Array
         options[:phpt].concat test_globs
       end
 
@@ -140,18 +147,23 @@ CONFIG = PfttOptions.parse ARGV
 # set up our basic test bench factors
 $hosts = (Host::Array.new.load(CONFIG[:host,:path])).filter(CONFIG[:host,:filters])
 require 'typed-array'
-$phps = PhpBuild.get_set(CONFIG[:php,:dir]||'').filter(CONFIG[:phps,:filters])
+$phps = PhpBuild.get_set(CONFIG[:php,:dir]||'').filter(CONFIG[:php,:filters])
 $middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
 $fs_contexts = Context::FileSystem::All.filter(CONFIG[:context,:filesystem,:filters])
 $cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 
 case CONFIG[:action].to_s
 when 'functional'
-  $testcases = Phpt::TestCase::Array.new.load(CONFIG[:phpt])
+  $testcases = PhptTestCase::Array.new.load(CONFIG[:phpt])
+  puts $testcases.map{|i|i.inspect} ;
+  exit
   require 'bin/functional.rb'
 when 'inspect'
+  puts 'HOSTS:'
   puts $hosts
+  puts 'PHP BUILDS:'
   puts $phps
+  puts 'MIDDLEWARES:'
   puts $middlewares
 else
   puts 'An action must be specified: --func[tional] --perf[ormance]'

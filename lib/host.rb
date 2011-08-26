@@ -1,12 +1,14 @@
 require 'Open3'
 
 module Host
-  def Factory( options )
-    (Host.hosts[options.delete(type)||:local]).new options
-  end
+  class << self
+    def Factory( options )
+      (Host.hosts[options.delete('type')||'local']).new options
+    end
 
-  def self.hosts
-    @@hosts||={}
+    def hosts
+      @@hosts||={}
+    end
   end
 
   class Base
@@ -71,7 +73,7 @@ module Host
     class << self
       # create a way for a class to register itself as instantiable by the Factory function
       def instantiable name
-        Host.hosts[:name] = self
+        Host.hosts.merge! name => self
       end
     end
   end
@@ -84,8 +86,9 @@ module Host
 
 
     def load( path )
+      path = File.absolute_path( path )
       config = Hash.new
-      return self unless File.exist? path
+      return self unless File.exist? path or Dir.exist? path
       if File.directory? path
         Dir.glob( File.join( path, '**', '*.yaml' ) ) do |file|
           config[File.basename( file, '.yaml' )]= YAML::load( File.open file )
@@ -93,8 +96,17 @@ module Host
       else
         config.merge! YAML::load( File.open path )
       end
-      config.each_pair{|name,spec| Host::Generate( name, spec )}
+      config.each_pair do |name,spec|
+        self << Host::Factory( spec.merge(:name=>name) )
+      end
       self
     end
   end
 end
+
+# Load up all of our middleware classes right away instead of waiting for the autoloader
+# this way they are actually available in Middleware::All
+# although it technically does not matter the order in which they are loaded (as they will trigger
+# autoload events on missing constants), reverse tends to get shallow before deep and should improve
+# performance, if only marginally.
+Dir.glob(File.join( File.dirname(__FILE__), 'host/**/*.rb')).reverse_each &method(:require)

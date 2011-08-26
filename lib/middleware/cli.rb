@@ -1,6 +1,7 @@
 module Middleware
   class Cli < Base
     instantiable
+    property :interface => 'cli'
 
     # MUST return an array like this:
     # 

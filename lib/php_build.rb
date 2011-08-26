@@ -3,12 +3,9 @@ class PhpBuild
   include PhpIni::Inheritable
 
   def self.get_set(*globs)
-    puts globs.inspect
     set = Class.new(TypedArray( self )){include TestBenchFactorArray}.new
-    puts 'loading!'
     globs.each do |glob|
       Dir.glob( glob ) do |php|
-        puts 'i found one!'
         set << PhpBuild.new( php )
       end
     end
@@ -50,6 +47,7 @@ class PhpBuild
       branchinfo,
       property(:revision)
     ].compact.join('-')
+    self
   end
 
   def to_s

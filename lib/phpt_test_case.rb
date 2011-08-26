@@ -87,10 +87,10 @@ class PhptTestCase
     @local_files = Hash.new
     path = File.dirname @phpt_path
     { 
-      :file => 'php'
-      :skipif => 'skipif.php'
+      :file => 'php',
+      :skipif => 'skipif.php',
       :clean => 'clean.php'
-    }.each_pair |key,ext| do
+    }.each_pair do |key,ext|
       @local_files[key]= save_section(key, path, ext) if parts.has_key? key
     end
   end
@@ -111,6 +111,10 @@ class PhptTestCase
   def pass?
     raise 'Result not attached' if @result_tester.nil?
     @result_tester.pass?
+  end
+
+  def inspect
+    parts.inspect
   end
 
   protected
@@ -171,5 +175,14 @@ def PhptTestCase::Error
 
   def to_s
     @message
+  end
+end
+
+class PhptTestCase::Array < TypedArray(PhptTestCase)
+  def load( glob )
+    Dir.glob( glob ) do |file|
+      self << PhptTestCase.new( file )
+    end
+    self
   end
 end

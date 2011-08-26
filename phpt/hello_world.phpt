@@ -1,6 +1,6 @@
 --TEST--
 basic test
---FILE--
+--FILEEOF--
 <?php
   echo "hello, world!";
 ?>

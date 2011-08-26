@@ -1,12 +1,13 @@
-action: inspect
 host:
-  path: config/definitions/host/
+  path: config/definitions/host
   filters: 
-    local:true
+    type: local
 php:
   dir: php-builds/**/*.*
   filters:
     platform: windows
-    compiler: vc9
+    compiler: VC9
 middleware:
-  definition-files: config/definitions/middleware/**/*.rb
+  filters:
+    interface: cli
+phpt: phpt/**/*.phpt

@@ -1,5 +1,7 @@
 module Host
   class Local < Base
+    instantiable 'local'
+
     def exec command, opts={}
       watcher = Thread.start do
         o,e,w = Open3.capture3( command, opts )
@@ -9,15 +11,15 @@ module Host
     def copy src, dest
       FileUtils.cp_r src, dest
     end
-    alias :upload, :copy
-    alias :download, :copy
+    alias :upload :copy
+    alias :download :copy
 
     def exist? file
       File.exist? file
     end
 
     def directory? path
-      exist? path && File.directory? path
+      exist?(path) && File.directory?(path)
     end
 
     def open_file path, &block

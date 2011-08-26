@@ -1,6 +1,6 @@
 module Host
   class Ssh < Base
-    instantiable :ssh
+    instantiable 'ssh'
 
     def initialize opts={}
       options = opts.dup
@@ -32,10 +32,10 @@ module Host
             # if remote process killed, etc... won't get a normal exit code
             # instead, try to generate exit_code from optional exit-signal
             exit_code = case
-            when data.inspect.include? 'KILL' then 9  # SIGKILL
-            when data.inspect.include? 'SEGV' then 11 # SIGSEGV (crash)
-            when data.inspect.include? 'TERM' then 15 # SIGTERM
-            when data.inspect.include? 'HUP'  then 1  # SIGHUP
+            when data.inspect.include?('KILL') then 9  # SIGKILL
+            when data.inspect.include?('SEGV') then 11 # SIGSEGV (crash)
+            when data.inspect.include?('TERM') then 15 # SIGTERM
+            when data.inspect.include?('HUP')  then 1  # SIGHUP
             when exit_code == -254 then data.inspect
             else exit_code
             end
@@ -60,7 +60,7 @@ module Host
 
     def copy src, dest
       exec! case
-      when posix? %Q{cp -R "#{from}" "#{to}"}
+      when posix? then %Q{cp -R "#{from}" "#{to}"}
       else %Q{CMD /C copy "#{from}" "#{to}"}
       end
     end

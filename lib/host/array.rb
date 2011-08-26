@@ -1,10 +1,10 @@
-require 'typed-array'
+#require 'typed-array'
 
-module Host
-  class Array < Array
-    extend TypedArray
-    restrict_types Host::Base
+#module Host
+#  class Array < Array
+#    extend TypedArray
+#   restrict_types Host::Base
 
-    include FilterByPropertyValue
-  end
-end
+#    include FilterByPropertyValue
+#  end
+#end
