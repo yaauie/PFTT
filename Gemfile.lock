@@ -2,6 +2,7 @@ GEM
   remote: http://rubygems.org/
   specs:
     ZenTest (4.4.2)
+    abstract_class (0.0.2)
     activemodel (3.0.9)
       activesupport (= 3.0.9)
       builder (~> 2.1.2)
@@ -36,6 +37,7 @@ PLATFORMS
 
 DEPENDENCIES
   ZenTest (~> 4.4.2)
+  abstract_class
   activerecord
   activesupport
   net-sftp

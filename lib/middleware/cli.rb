@@ -23,12 +23,11 @@ module Middleware
     def execute_php_script deployed_script 
       o,e,s = @host.exec!( [
             self.php_binary,
-          current_ini.to_a.map{|directive| "-d #{directive}"},
-          File.join( docroot, deployed_script )
+          current_ini.to_a.map{|directive| %Q{-d "#{directive}"}},
+          deployed_script
         ].flatten.compact.join(' '),
         #{:timeout=>30} # register disinterest. 
       )
-      puts o
       [s.success?,( o + e )]
     rescue Timeout::Error
       [false, 'operation timed out.']

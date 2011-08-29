@@ -15,11 +15,11 @@ class PhpIni
           compiled = PhpIni.new
           ancestors.to_a.reverse_each do |ancestor|
             next true unless ancestor.respond_to? :ini
-            compiled << ancestor.ini(false)
+            compiled.configure ancestor.ini(false)
           end
           compiled
         else
-          self.class.ini << ini(false)
+          self.class.ini.clone + ini(false)
         end
       when arg == false
         @ini ||= PhpIni.new

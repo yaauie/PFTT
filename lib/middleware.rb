@@ -64,11 +64,13 @@ module Middleware
     # this is so that server-based installs can get restarted.
     # the php_ini should be whatever is *on top* of this class' compiled ini.
     def apply_ini( php_ini=[] )
-      new_ini = base_ini << ( php_ini || [] )
+      new_ini = base_ini
+      new_ini << ( php_ini || [] )
       if new_ini == current_ini
         return false
       else
         @current_ini = new_ini
+        true
       end
     end
 
@@ -98,7 +100,7 @@ module Middleware
       safe_mode=0
       disable_functions=
       output_buffering=Off
-      error_reporting= E_ALL | E_STRICT
+      ;error_reporting= E_ALL | E_STRICT
       display_errors=1
       display_startup_errors=1
       log_errors=0

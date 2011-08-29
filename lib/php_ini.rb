@@ -25,11 +25,17 @@ class PhpIni
   # and is a lot easier to type.
   alias :<< :configure
 
+  def + other_ini
+    (new_ini = self.clone).configure other_ini
+    new_ini
+  end
+
   def clone
     PhpIni.new( self )
   end
 
   def ==( other_PhpIni )
+    other_PhpIni = PhpIni.new( other_PhpIni ) unless other_PhpIni.is_a? PhpIni
     a,b=[tokens,other_PhpIni.tokens].map do |token_ary| # strip out all directives that aren't commands
       kv={}
       token_ary.each do |token|

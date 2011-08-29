@@ -9,8 +9,11 @@ class PhptTestCase
       [:test]
     ],
     :optional => [
-      [:post,:post_raw],
-      [:credit,:credits]
+      #[:post,:post_raw],
+      [:credit,:credits],
+      [:ini],
+      [:skipif],
+      [:clean]
     ]
   }
 
@@ -29,6 +32,11 @@ class PhptTestCase
 
   def description
     @phpt_path
+  end
+
+  def expectation
+    @expectation_type ||= (parts.keys & [:expect,:expectf,:expectregex]).first
+    @expectation ||= {:type => @expectation_type, :content => self[@expectation_type]}
   end
 
   def options
@@ -68,7 +76,11 @@ class PhptTestCase
 
   def unsupported?
     # are any sections in parts not present in @supported_sections
-    !(parts.keys - @@supported_sections.values.flatten).length.zero?
+    !unsupported_sections.length.zero?
+  end
+
+  def unsupported_sections
+    @unsupported_sections ||= (parts.keys - @@supported_sections.values.flatten)
   end
 
   def []( section )
@@ -175,9 +187,11 @@ def PhptTestCase::Error
 end
 
 class PhptTestCase::Array < TypedArray(PhptTestCase)
-  def load( glob )
-    Dir.glob( glob ) do |file|
-      self << PhptTestCase.new( file )
+  def load( *globs )
+    globs.each do |glob|
+      Dir.glob( glob ).each do |file|
+        self << PhptTestCase.new( file )
+      end
     end
     self
   end

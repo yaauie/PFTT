@@ -9,4 +9,6 @@ gem 'typed-array'
 gem 'net-ssh'
 gem 'net-sftp'
 
+gem 'abstract_class'
+
 gem 'activerecord'

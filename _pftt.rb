@@ -119,12 +119,12 @@ class PfttOptions
       end
 
       opts.on( 
-        '--phpt-tests <glob>[,<glob>[,...]]',
+        '--phpt-tests <dir>[,<dir>[,...]]',
         Array
       ) do |test_globs|
         options[:phpt]||=[]
         options[:phpt] = [options[:phpt]] unless options[:phpt].is_a? Array
-        options[:phpt].concat test_globs
+        options[:phpt].concat test_globs.map{|i|i+'/**/*.phpt'}
       end
 
       opts.on_tail(
@@ -155,9 +155,10 @@ $cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 case CONFIG[:action].to_s
 when 'functional'
   $testcases = PhptTestCase::Array.new.load(CONFIG[:phpt])
-  puts $testcases.map{|i|i.inspect} ;
-  TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
-  require 'bin/functional.rb'
+  r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
+  puts 'PASS: '+r.pass.to_s
+  puts 'FAIL: '+r.fail.to_s
+  puts 'RATE: '+r.rate.to_s+'%'
 when 'inspect'
   puts 'HOSTS:'
   puts $hosts
