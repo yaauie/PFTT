@@ -2,6 +2,11 @@ require File.join(File.dirname(__FILE__),'bootstrap.rb')
 
 require 'optparse'
 require 'pp'
+class String
+  def convert_path
+    self.gsub('\\','/')
+  end
+end
 
 class PfttOptions
   
@@ -87,6 +92,14 @@ class PfttOptions
       end
 
       opts.on( 
+        '--php-branch <BRANCH>[,<BRANCH>]',
+        Array
+      ) do |php_branches|
+        options[:php,:filters,:php_branch]||= []
+        options[:php,:filters,:php_branch].concat php_branches
+      end
+
+      opts.on( 
         '--platform <PLATOFRM>[,<PLATFORM>]',
         Array
       ) do |platforms|
@@ -124,7 +137,7 @@ class PfttOptions
       ) do |test_globs|
         options[:phpt]||=[]
         options[:phpt] = [options[:phpt]] unless options[:phpt].is_a? Array
-        options[:phpt].concat test_globs.map{|i|i+'/**/*.phpt'}
+        options[:phpt].concat test_globs
       end
 
       opts.on_tail(
@@ -145,16 +158,17 @@ end
 CONFIG = PfttOptions.parse ARGV
 
 # set up our basic test bench factors
-$hosts = (Host::Array.new.load(CONFIG[:host,:path])).filter(CONFIG[:host,:filters])
+$hosts = (Host::Array.new.load(CONFIG[:host,:path].convert_path)).filter(CONFIG[:host,:filters])
 require 'typed-array'
-$phps = PhpBuild.get_set(CONFIG[:php,:dir]||'').filter(CONFIG[:php,:filters])
+$phps = PhpBuild.get_set(CONFIG[:php,:dir].convert_path||'').filter(CONFIG[:php,:filters])
 $middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
 $fs_contexts = Context::FileSystem::All.filter(CONFIG[:context,:filesystem,:filters])
 $cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 
 case CONFIG[:action].to_s
 when 'functional'
-  $testcases = PhptTestCase::Array.new.load(CONFIG[:phpt])
+  puts CONFIG[:phpt].map{|i|i.convert_path}.inspect
+  $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }.flatten
   r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
   puts 'PASS: '+r.pass.to_s
   puts 'FAIL: '+r.fail.to_s

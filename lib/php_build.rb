@@ -24,6 +24,10 @@ class PhpBuild
     properties.merge(requirements)[k]
   end
 
+  def describe()
+    File.basename(path)
+  end
+
   protected
 
   def determine_properties_and_requirements
@@ -34,6 +38,7 @@ class PhpBuild
     branchinfo = parts.select{|i| i =~ /[0-9]\.[0-9]+/ }.first
 
     property :php_branch => branchinfo.split('.').first(2).join('.')
+    property :php_version_major => branchinfo.split('.').first.to_i
     property :threadsafe => parts.select{|i| i == 'nts' }.empty?
     property :revision => (parts.select{|i| i =~ /r[0-9]+/ }).first
 

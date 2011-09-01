@@ -59,10 +59,12 @@ module Host
     end
 
     def copy src, dest
+      dir = directory? dest
       exec! case
-      when posix? then %Q{cp -R "#{from}" "#{to}"}
-      else %Q{CMD /C copy "#{from}" "#{to}"}
+      when posix? then %Q{cp -R "#{src}" "#{dest}"}
+      else %Q{CMD /C copy "#{src}" "#{dest}"}
       end
+      ( dir ? File.join( dest, File.basename(src) ) : dest )
     end
 
     def deploy local_file, remote_path
@@ -102,11 +104,15 @@ module Host
     end
 
     def upload local_file, remote_path
+      dir = directory? remote_path
       sftp.upload! local_file, remote_path
+      ( dir ? File.join( remote_path, File.basename(local_file) ) : remote_path )
     end
 
     def download remote_file, local_path
+      dir = File.directory? local_path
       sftp.download! remote_file, local_path
+      ( dir ? File.join( local_path, File.basename(remote_file) ) : local_path )
     end
 
     protected

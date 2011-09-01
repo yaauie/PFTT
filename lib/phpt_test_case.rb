@@ -19,15 +19,21 @@ class PhptTestCase
 
   attr_reader :phpt_path
 
-  def initialize( path )
+  def initialize( path, set=nil )
     if !File.exists?( path ) 
       raise 'File not found: ['+path+']'
     end
     @phpt_path = path
+    @set = set
   end
+  attr_reader :set
 
   def name
-    File.basename @phpt_path, '.phpt'
+    @name ||= File.basename @phpt_path, '.phpt'
+  end
+
+  def relative_path
+    @relative_path ||= File.relative( phpt_path, (set.nil? ? nil : set.path ) )
   end
 
   def description
@@ -87,6 +93,10 @@ class PhptTestCase
     return parts[section] || nil
   end
 
+  def has_section? section
+    return parts.has_key? section
+  end
+
   def save_section( section, path, extension=section.to_s )
     fullpath = File.join( path, "#{name}.#{extension}")
     File.open fullpath, 'w' do |file|
@@ -105,15 +115,21 @@ class PhptTestCase
 
   def files
     # TODO: supporting files:
+    case
+    when nil 
     # scenario 1: options[:support_files]
 
     # scenario 2: folder with same name as this test case
 
-    # scenario 3: all folders alongside this and all files that are not phpt files
-  end
-
-  def attach_result( result )
-    @result_tester.test( result ) unless @result_tester.raw == result
+    # scenario 3: all folders & files alongside this and all files that are not phpt files
+    else
+      base = File.dirname( @phpt_path )
+      @files ||= Dir.glob( File.join(base,'*') ).map do |file|
+        next nil if ['..','.'].include? file
+        next nil if file.end_with? '.phpt'
+        file
+      end.compact
+    end
   end
 
   def pass?
@@ -125,14 +141,17 @@ class PhptTestCase
     parts.inspect
   end
 
+  def raw
+    @raw ||= IO.read(@phpt_path)
+  end
+
   protected
 
   def parse!
-    @raw ||= IO.read(@phpt_path)
     reset!
     @result_tester = nil
     section = :none
-    @raw.lines do |line|
+    raw.lines do |line|
       if line =~ /^--(?<section>[A-Z_]+)--/
         section = Regexp.last_match[:section].downcase.to_sym
         @parts[section]=''
@@ -187,12 +206,15 @@ def PhptTestCase::Error
 end
 
 class PhptTestCase::Array < TypedArray(PhptTestCase)
-  def load( *globs )
-    globs.each do |glob|
-      Dir.glob( glob ).each do |file|
-        self << PhptTestCase.new( file )
-      end
+  def initialize ( path, name, hsh={} )
+    puts "new PhptTestCase::Array: #{path}"
+    @path = path.gsub('\\','/')
+    @name = name
+    #@whitelist = hsh.delete :whitelist
+    #@blacklist = hsh.delete :blacklist
+    Dir.glob( File.join( @path, '**/*.phpt' ) ).each do |file|
+      self << PhptTestCase.new( file, self )
     end
-    self
   end
+  attr_reader :path
 end

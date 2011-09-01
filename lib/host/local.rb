@@ -1,15 +1,36 @@
+require 'fileutils'
+
 module Host
   class Local < Base
     instantiable 'local'
 
     def exec command, opts={}
+      #puts %Q{running> #{command}}
       watcher = Thread.start do
-        o,e,w = Open3.capture3( command, opts )
+        retries = 3
+        begin
+          o,e,w = Open3.capture3( command, opts )
+        rescue
+          if (retries-=1) >= 0
+            sleep 2
+            retry
+          end
+          raise $!
+        end
       end
     end
 
     def copy src, dest
-      FileUtils.cp_r src, dest
+      #puts %Q{copy( #{src.inspect}, #{dest.inspect} )}
+      # copy does this normally, but we will ensure it 
+      # happens consistently before we descend
+      if directory? dest
+        dest = File.join( dest, File.basename(src) )
+      end
+      
+      FileUtils.cp_r( src, dest, :preserve=>false )
+
+      return dest
     end
     alias :upload :copy
     alias :download :copy
@@ -28,9 +49,9 @@ module Host
     
     # list the immediate children of the given path
     def list path
-      Dir.entries( dir ).map do |entry|
+      Dir.entries( path ).map do |entry|
         next nil if ['.','..'].include? entry
-        File.join( path, entry )
+        entry
       end.compact
     end
 

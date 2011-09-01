@@ -23,7 +23,7 @@ module Middleware
     def execute_php_script deployed_script 
       o,e,s = @host.exec!( [
             self.php_binary,
-          current_ini.to_a.map{|directive| %Q{-d "#{directive}"}},
+          current_ini.to_a.map{|directive| %Q{-d #{@host.escape(directive)}}},
           deployed_script
         ].flatten.compact.join(' '),
         #{:timeout=>30} # register disinterest. 

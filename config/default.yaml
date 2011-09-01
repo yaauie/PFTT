@@ -10,4 +10,4 @@ php:
 middleware:
   filters:
     interface: cli
-phpt: phpt/**/*.phpt
+phpt: 

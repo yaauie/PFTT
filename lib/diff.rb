@@ -13,8 +13,8 @@ module Diff
         when :insert then '+'
         when :delete then '-'
         else ''
-        end + line[1]
-      end.join('')
+        end + line[1].gsub(/\n\Z/,'')
+      end.join("\n")
     end
 
     def stat
@@ -52,12 +52,14 @@ module Diff
     def _get_diff( expectation, result )
       prefix = _common_prefix( expectation, result )
       if prefix.length.nonzero?
-        [expectation,result].each{|i| i.shift prefix.length}
+        expectation.shift prefix.length
+        result.shift prefix.length
       end
 
       suffix = _common_suffix( expectation, result )
       if suffix.length.nonzero?
-        [expectation,result].each{|i| i.pop prefix.length}
+        expectation.pop prefix.length
+        result.pop prefix.length
       end
 
       return (
@@ -202,7 +204,8 @@ module Diff
 
   class RegExp < Base
     def _compare_line( expectation, result )
-      Regexp.new(expectation).match(result)
+      #puts %Q{compare: #{expectation.inspect} to #{result.inspect}}
+      Regexp.new(%Q{\\A#{expectation}\\Z}).match(result)
     end
   end
 
@@ -235,18 +238,46 @@ module Diff
     #ok, now for the implementation:
     def _compare_line( expectation, result )
       rex = Regexp.escape(expectation)
-      patterns.each_pair{|pattern,replacement| rex.gsub!(pattern, replacement)}
+      # arrange the patterns in longest-to shortest and apply them.
+      # the order matters because %string% must be replaced before %s.
+      patterns.to_a.sort{|a,b|-1*(a[0].size <=> b[0].size)}.each{|pattern| rex.gsub!(pattern[0], pattern[1])}
       super( rex, result )
     end
 
     # and some default patterns
     patterns ({
-      '%s' => '.+?',
-      '%i' => '[+\\-]?[0-9]+',
-      '%d' => '[0-9]+',
+      '%e' => '\\[\\/]',# a little too fogiving since I don't know which host it's running on.
+      '%s' => '[^\r\n]+',
+      '%S' => '[^\r\n]*',
+      '%a' => '.+',
+      '%A' => '.*',
+      '%w' => '\s*',
+      '%i' => '[+-]?\d+',
+      '%d' => '\d+',
       '%x' => '[0-9a-fA-F]+',
-      '%f' => '[+\\-]?\\.?[0-9]+\\.?[0-9]*(E-?[0-9]+)?',
-      '%c' => '.'
+      '%f' => '[+-]?\.?\d+\.?\d*(?:[Ee][+-]?\d+)?',
+      '%c' => '.',
     })
+
+    class Php5 < Formatted
+      patterns ({
+        '%u\|b%' => '',
+        '%b\|%u' => '', #PHP6+: 'u'
+        '%binary_string_optional%' => 'string', #PHP6+: 'binary_string'
+        '%unicode_string_optional%' => 'string', #PHP6+: 'Unicode string'
+        '%unicode\|string%' => 'string', #PHP6+: 'unicode'
+        '%string\|unicode%' =>  'string', #PHP6+: 'unicode'
+      })
+    end
+    class Php6 < Formatted
+      patterns ({
+        '%u\|b%' => 'u',
+        '%b\|%u' => 'u', #PHP6+: 'u'
+        '%binary_string_optional%' => 'binary_string', #PHP6+: 'binary_string'
+        '%unicode_string_optional%' => 'Unicode string', #PHP6+: 'Unicode string'
+        '%unicode\|string%' => 'unicode', #PHP6+: 'unicode'
+        '%string\|unicode%' =>  'unicode', #PHP6+: 'unicode'
+      })
+    end
   end
 end

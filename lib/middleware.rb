@@ -11,18 +11,22 @@ module Middleware
 
     attr_accessor :docroot
 
-    def ini(arg=nil)
-      ret = super
+    #def ini(arg=nil)
+      #ret = super
       # if we're getting the whole stack, push the extensions_dir to the *top*.
-      PhpIni.new(%Q{extension_dir="#{@deployed_php}/ext"}).configure(ret) if arg.nil?
-      ret
-    end
+      #PhpIni.new(%Q{extension_dir="#{@deployed_php}/ext"}).configure(ret) if arg.nil?
+      #ret
+    #end
 
     # now start defining our base
     def initialize( host, php_build, *contexts )
       @host = host
       @php_build = php_build
       @contexts = contexts.each{|context_klass| context_klass.new( host, self, php_build )}
+    end
+
+    def describe
+      @description ||= self.class.to_s.downcase.gsub('::','-')
     end
 
     def _deploy_php_bin
@@ -64,9 +68,11 @@ module Middleware
     # this is so that server-based installs can get restarted.
     # the php_ini should be whatever is *on top* of this class' compiled ini.
     def apply_ini( php_ini=[] )
-      new_ini = base_ini
+      new_ini = PhpIni.new(%Q{extension_dir="#{@deployed_php}/ext"})
+      new_ini << base_ini
       new_ini << ( php_ini || [] )
-      if new_ini == current_ini
+      #filtered_ini = PhpIni.new new_ini.to_a.map{|e| f = @host.escape(e); puts "   #{f}"; f }
+      if new_ini == @current_ini
         return false
       else
         @current_ini = new_ini
@@ -95,14 +101,14 @@ module Middleware
     end
 
     ini <<-INI
+      display_startup_errors=0
       output_handler=
       open_basedir=
       safe_mode=0
       disable_functions=
       output_buffering=Off
-      ;error_reporting= E_ALL | E_STRICT
+      error_reporting=32767
       display_errors=1
-      display_startup_errors=1
       log_errors=0
       html_errors=0
       track_errors=1

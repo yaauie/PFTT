@@ -22,6 +22,10 @@ module Host
       end
     end
 
+    def describe
+      @description ||= self.properties.values.join('-').downcase
+    end
+
     def exec! *args
       exec(*args).value
     end
@@ -49,8 +53,19 @@ module Host
           when posix? then %Q{rm -rf "#{path}"}
           else %Q{CMD /C RMDIR /S /Q "#{path}"}
           end
+        else
+          _delete path #implementation specific
         end
-        _delete path #implementation specific
+      end
+    end
+
+    def escape(str)
+      if !posix?
+        s = str.dup
+        s.replace %Q{"#{s}"} unless s.gsub!(/([>&^"])/,'\\\\\1').nil?
+        s
+      else
+        raise NotImplementedYet
       end
     end
 
@@ -58,6 +73,19 @@ module Host
       parent = File.dirname path
       mkdir parent unless directory? parent
       _mkdir path
+    end
+
+    def mktmpdir path
+      tries = 10
+      begin
+        dir = File.join( path, String.random(16) )
+        raise 'exists' if directory? dir
+        mkdir dir
+      rescue
+        retry if (tries -= 1) > 0
+        raise $!
+      end
+      dir
     end
 
     def sane? path

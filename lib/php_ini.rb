@@ -15,7 +15,7 @@ class PhpIni
     when ini.kind_of?(self.class) then _configure ini.tokens
     when ini.kind_of?(Array)      then _configure _tokenize ini
     when ini.kind_of?(String)
-      ini = File.open( ini[1 .. ini.length], 'rb').read if ini.start_with? '@'
+      #ini = File.open( ini[1 .. ini.length], 'rb').read if ini.start_with? '@'
       _configure _tokenize ini.split(/\r?\n/)
     else raise Exception, %Q{ini:#{ini.inspect}}  
     end
@@ -48,7 +48,6 @@ class PhpIni
       end
       kv
     end
-    
     a==b #and compare
   end
   
@@ -58,7 +57,17 @@ class PhpIni
 
   def to_a(raw=false)
     ( raw ? @raw : @tokens ).map do |token|
-      token[:raw]
+      #puts token.inspect
+      ret = token[:key]
+      ret += '='
+      if /[ =><&]/ =~ token[:value]
+        # if it contains any funky values
+        # quote it. We'll deal with shell escaping at the host/middleware levels/ 
+        ret += %Q{"#{token[:value]}"} 
+      else
+        ret += token[:value]
+      end
+      ret
     end
   end
 
@@ -73,8 +82,8 @@ class PhpIni
   def _tokenize( ini_array )
     ini_array.map do |line|
       token = { :raw=>line }
-      command = line.split(';').first.strip
-      unless command.length.nonzero?
+      command = line.strip
+      if command.length.zero? or command.start_with? ';'
         token[:token]=:comment
       else
         if command.start_with? '-'
@@ -83,7 +92,7 @@ class PhpIni
         else token[:token]=:command
         end
         if command.include? '='
-          token[:key],token[:value] = command.split('=', 2)
+          token[:key],token[:value] = command.split('=', 2).map{|str|str.strip}
           token[:value].unquote!
         else token[:key]=command
         end

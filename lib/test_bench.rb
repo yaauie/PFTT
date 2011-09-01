@@ -44,6 +44,14 @@ module TestBench
       end
     end
 
+    def describe
+      @description ||= [
+        %Q{#{@php.properties[:version]}-#{DateTime.now.strftime('%Y%m%d-%H%M%S')}},
+        @middleware.describe,
+        @host.describe,
+        @php.describe
+      ].compact
+    end
 
     class << self
       # TestBench.iterate( php_builds, hosts, middlewares, *args ){|*args| &block }
@@ -69,7 +77,7 @@ module TestBench
             next unless test_bench.compatible?
 
             test_bench.install
-            
+            puts test_bench.describe.join(' ')
             results.concat test_bench.run test_cases
           #ensure
             test_bench.uninstall

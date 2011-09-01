@@ -1,6 +1,7 @@
 class File
   class << self
-    def relative( path, base=Dir.getwd )
+    def relative( path, base=nil )
+      base = Dir.getwd if base.nil?
       path = (File.absolute_path path).split(/[\\\/]/)
       base = (File.absolute_path base).split(/[\\\/]/)
       #build an array [[p0,b0],[p1,b1],[p2,nil]]
