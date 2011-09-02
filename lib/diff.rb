@@ -58,8 +58,8 @@ module Diff
 
       suffix = _common_suffix( expectation, result )
       if suffix.length.nonzero?
-        expectation.pop prefix.length
-        result.pop prefix.length
+        expectation.pop suffix.length
+        result.pop suffix.length
       end
 
       return (
@@ -99,17 +99,20 @@ module Diff
         end
       end
       
-      if (expectation.length + result.length) < 1000
+      lcs_max = 500
+      chunk_size = 50
+
+      if (expectation.length + result.length) < lcs_max
         # try using LCS
         _diff_lcs( expectation, result)
-      #elsif [expectation.length,result.length].min > 40
+      elsif [expectation.length,result.length].min > chunk_size
         # chunk off a bit & try again
-        #_reduce_noise(
-        #  _get_diff( expectation.first(40), result.first(40) )+
-        #  _get_diff( expectation.dup.drop(40), result.dup.drop(40) )
-        #)
+        _reduce_noise(
+          _get_diff( expectation.first(chunk_size), result.first(chunk_size) )+
+          _get_diff( expectation.dup.drop(chunk_size), result.dup.drop(chunk_size) )
+        )
       else
-        # last resort.
+         # last resort.
         _tokenize( expectation, :delete ) + _tokenize( result, :insert )
       end
     end
@@ -149,20 +152,32 @@ module Diff
       return diff if diff.length.zero?
 
       ret = []
-      cache = Hash.new{|h,k|[]}
+      cache = Hash.new{|h,k|h[k]=[]}
 
       diff.each do |token|
         case token[0]
         when :equals
-          ret.concat(*cache.values)
-          cache.clear
+          [:insert,:delete].each do |action|
+            (cache.delete(action)||[]).each do |token|
+              ret.push token
+            end
+          end
           ret.push token
         else
+          puts %Q{pushing: [#{token[0]}] #{token.inspect}}
           cache[token[0]].push token
         end
       end
 
+      puts ret.inspect
+
       ret
+    end
+
+    # if the first diff has a bunch of deletes at the end that match inserts at the beginning of the second diff
+    # or inserts in at the tail of the 1st that match deletes at the head of the 2nd, 
+    def _concatenate_diffs( first_half, second_half )
+
     end
 
     def _compare_lines( expectation, result )
