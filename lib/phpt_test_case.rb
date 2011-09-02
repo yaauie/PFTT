@@ -169,6 +169,7 @@ class PhptTestCase
         parse_line line, context
       end
     end
+    @parts[:file].gsub!(%Q{\r\n},%Q{\n})
   end
 
   def reset!
