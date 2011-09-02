@@ -41,8 +41,8 @@ module PhptTestResult
       super *args
       self.status = :skip
       @reason = reason
-      files['.skipif.php'] = @test_case[:skipif]
-      files['.skipif.result'] = @reason
+      files['skipif.php'] = @test_case[:skipif]
+      files['skipif.result'] = @reason
       self
     end
 
@@ -98,6 +98,7 @@ module PhptTestResult
       end)
 
       files['php'] = test_case[:file]
+      files[test_case.expectation[:type]] = test_case.expectation[:content]
       files['result'] = result_str
 
       files['diff']=@diff.to_s unless @diff.changes.zero?
