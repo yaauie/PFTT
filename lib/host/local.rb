@@ -6,6 +6,7 @@ module Host
 
     def exec command, opts={}
       #puts %Q{running> #{command}}
+      wrap! command unless ( opts.delete(:nowrap) || false )
       watcher = Thread.start do
         retries = 3
         begin
@@ -21,6 +22,7 @@ module Host
     end
 
     def copy src, dest
+      make_absolute! src, dest
       #puts %Q{copy( #{src.inspect}, #{dest.inspect} )}
       # copy does this normally, but we will ensure it 
       # happens consistently before we descend
@@ -36,19 +38,23 @@ module Host
     alias :download :copy
 
     def exist? file
+      make_absolute! file
       File.exist? file
     end
 
     def directory? path
+      make_absolute! file
       exist?(path) && File.directory?(path)
     end
 
     def open_file path, flags='r', &block
+      make_absolute! path
       File.open path, flags, &block
     end
     
     # list the immediate children of the given path
     def list path
+      make_absolute! path
       Dir.entries( path ).map do |entry|
         next nil if ['.','..'].include? entry
         entry
@@ -56,16 +62,19 @@ module Host
     end
 
     def glob spec, &block
+      make_absolute! spec
       Dir.glob spec, &block
     end
 
     protected
 
     def _delete path
+      make_absolute! path
       File.delete path
     end
 
     def _mkdir path
+      make_absolute! path
       Dir.mkdir path
     end
   end

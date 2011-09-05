@@ -13,6 +13,8 @@ module Host
     end
 
     def exec command, opts={}
+      wrap! command unless ( opts.delete(:nowrap) || false )
+      
       Thread.start do
         
         stdout, stderr = '',''
@@ -59,6 +61,7 @@ module Host
     end
 
     def copy src, dest
+      make_absolute! src, dest
       dir = directory? dest
       exec! case
       when posix? then %Q{cp -R "#{src}" "#{dest}"}
@@ -68,18 +71,22 @@ module Host
     end
 
     def deploy local_file, remote_path
+      make_absolute! remote_path
       sftp.upload local_file, remote_path
     end
 
     def directory? path
+      make_absolute! path
       sftp.file.directory? path
     end
 
     def exist? path
+      make_absolute! path
       sftp.stat!(path).exists?
     end
 
     def list(path)
+      make_absolute! path
       sftp.dir.entries(path).map do |entry| 
         next nil if ['.','..'].include? entry.name
         File.join( path, entry.name )
@@ -87,6 +94,7 @@ module Host
     end
 
     def glob spec, &blk
+      make_absolute! spec
       matches sftp.glob( cwd, spec ).map do |entry|
         next nil if ['.','..'].include? entry.name
         File.absolute_path( entry.name, cwd )
@@ -100,16 +108,19 @@ module Host
     end
 
     def open_file path, flags='r',&block
+      make_absolute! path
       sftp.file.open path, flags, &block
     end
 
     def upload local_file, remote_path
+      make_absolute! remote_path
       dir = directory? remote_path
       sftp.upload! local_file, remote_path
       ( dir ? File.join( remote_path, File.basename(local_file) ) : remote_path )
     end
 
     def download remote_file, local_path
+      make_absolute! remote_file
       dir = File.directory? local_path
       sftp.download! remote_file, local_path
       ( dir ? File.join( local_path, File.basename(remote_file) ) : local_path )
@@ -118,10 +129,12 @@ module Host
     protected
 
     def _delete path
+      make_absolute! path
       @sftp.delete! path
     end
 
     def _mkdir path
+      make_absolute! path
       @sftp.mkdir! path
     end
 

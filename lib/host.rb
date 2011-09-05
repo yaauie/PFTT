@@ -15,6 +15,14 @@ module Host
     include TestBenchFactor
     include PhpIni::Inheritable
 
+    def wrap! command
+      command.replace( wrap command )
+    end
+
+    def wrap command
+      %Q{pushd #{cwd} > /dev/null 2>&1 && #{command} && popd > /dev/null 2>&1}
+    end
+
     def initialize opts={}
       #set the opts as properties in the TestBenchFactor sense
       opts.each_pair do |key,value|
@@ -34,18 +42,40 @@ module Host
       @posix ||= self.properties[:platform] == :posix
     end
 
+    def make_absolute! *paths
+      paths.map do |path|
+        #escape hatch for already-absolute windows paths
+        return path if !posix? && path =~ /\A[A-Za-z]:\// 
+        
+        path.replace( File.absolute_path( path, cwd ) )
+        path
+      end
+    end
+
     # caching this is dangerous, since we can change this pretty easily with exec,
     # but because we have to shell out *every time* we want to get this, it needs to
     # be cached somehow.
     def cwd 
       @cwd ||= [case
       when posix? then exec!('pwd')[0]
-      else exec!(%Q{CMD /C ECHO %CD%})[0].gsub(/\r?\n\Z/,'')
+      else exec!(%Q{CMD /C ECHO %CD%}, :nowrap => true)[0].gsub(/\r?\n\Z/,'')
       end]
       @cwd.last
     end
 
+    def pushd path
+      cwd if @cwd.nil?
+      @cwd.push path
+    end
+
+    def popd
+      cwd if @cwd.nil?
+      raise Exception, %q{er, you can't popd any further; stack empty} if @cwd.length <= 1
+      @cwd.pop
+    end
+
     def delete glob_or_path
+      make_absolute! glob_or_path
       glob( glob_or_path ) do |path|
         raise Exception unless sane? path
         if directory? path
@@ -70,12 +100,14 @@ module Host
     end
 
     def mkdir path
+      make_absolute! path
       parent = File.dirname path
       mkdir parent unless directory? parent
       _mkdir path
     end
 
     def mktmpdir path
+      make_absolute! path
       tries = 10
       begin
         dir = File.join( path, String.random(16) )
@@ -89,12 +121,13 @@ module Host
     end
 
     def sane? path
+      make_absolute! path
       insane = case
       when posix?
         /\A\/(bin|var|etc|dev|Windows)\Z/
       else
         /\AC:(\/(Windows)?)?\Z/
-      end =~ File.absolute_path( path, cwd )
+      end =~ path
       !insane
     end
 
