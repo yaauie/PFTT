@@ -28,6 +28,7 @@ module Middleware
         ].flatten.compact.join(' '),
         #{:timeout=>30} # register disinterest. 
       )
+      #[o,e,s].each{|x| puts x.inspect}
       [s.success?,( o + e )]
     rescue Timeout::Error
       [false, 'operation timed out.']

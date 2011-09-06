@@ -78,6 +78,7 @@ module TestBench
 
             test_bench.install
             puts test_bench.describe.join(' ')
+            
             results.concat test_bench.run test_cases
           #ensure
             test_bench.uninstall

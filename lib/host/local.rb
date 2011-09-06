@@ -5,8 +5,8 @@ module Host
     instantiable 'local'
 
     def exec command, opts={}
-      #puts %Q{running> #{command}}
       wrap! command unless ( opts.delete(:nowrap) || false )
+      #puts %Q{running> #{command}}
       watcher = Thread.start do
         retries = 3
         begin
@@ -43,7 +43,7 @@ module Host
     end
 
     def directory? path
-      make_absolute! file
+      make_absolute! path
       exist?(path) && File.directory?(path)
     end
 

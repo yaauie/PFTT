@@ -20,7 +20,23 @@ module Host
     end
 
     def wrap command
-      %Q{pushd #{cwd} > /dev/null 2>&1 && #{command} && popd > /dev/null 2>&1}
+      %Q{#{silence('pushd '+cwd.gsub('/','\\'))} && #{command} && #{silence 'popd'}}
+    end
+
+    def silence_stderr str
+      %Q{#{str} 2> #{devnull}}
+    end
+
+    def silence_stdout str
+      %Q{#{str} > #{devnull}}
+    end
+
+    def silence str
+      %Q{#{str} > #{devnull} 2>&1}
+    end
+
+    def devnull
+      posix? ? '/dev/null' : 'NUL'
     end
 
     def initialize opts={}
