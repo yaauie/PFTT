@@ -38,6 +38,11 @@ module Host
       exec(*args).value
     end
 
+    def windows?
+      # avoids having to check for c:\windows|c:\winnt if we've already found /usr/local
+      @is_windows ||= ( !posix? and ( exist? "C:\\Windows" or exist? "C:\\WinNT" ) )
+    end
+
     def posix?
       @posix ||= self.properties[:platform] == :posix
     end
