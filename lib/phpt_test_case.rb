@@ -145,8 +145,6 @@ class PhptTestCase
     @raw ||= IO.read(@phpt_path)
   end
 
-  protected
-
   def parse!
     reset!
     @result_tester = nil
@@ -169,8 +167,10 @@ class PhptTestCase
         parse_line line, context
       end
     end
-    @parts[:file].gsub!(%Q{\r\n},%Q{\n})
+    @parts[:file].gsub!(%Q{\r\n},%Q{\n}) unless @parts[:file].nil?
   end
+
+  protected
 
   def reset!
     @parts = {}

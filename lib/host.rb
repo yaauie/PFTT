@@ -20,7 +20,7 @@ module Host
     end
 
     def wrap command
-      %Q{#{silence('pushd '+cwd.gsub('/','\\'))} && #{command} && #{silence 'popd'}}
+      %Q{#{silence('pushd '+format_path(cwd))} && #{command} && #{silence 'popd'}}
     end
 
     def silence_stderr str
@@ -73,6 +73,13 @@ module Host
       end
     end
 
+    def format_path path
+      case
+      when windows? then path.gsub('/','\\')
+      else path
+      end
+    end
+
     # caching this is dangerous, since we can change this pretty easily with exec,
     # but because we have to shell out *every time* we want to get this, it needs to
     # be cached somehow.
@@ -113,7 +120,8 @@ module Host
     def escape(str)
       if !posix?
         s = str.dup
-        s.replace %Q{"#{s}"} unless s.gsub!(/([>&^"])/,'\\\\\1').nil?
+        s.replace %Q{"#{s}"} unless s.gsub!(/(["])/,'\\\\\1').nil?
+        s.gsub!(/[\^&|><]/,'^\\1')
         s
       else
         raise NotImplementedYet

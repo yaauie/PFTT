@@ -30,10 +30,13 @@ module TestBench
           tmpdir = @host.mktmpdir(@middleware.docroot)
 
           # parse all the phpt's and upload the files at the same time.
-          threads = []
-          threads.push Thread.start{ puts 'uploading';@host.upload test_cases.path, tmpdir; puts 'uploaded.' }
-          threads.push Thread.start{ puts 'loading'; test_cases.load; puts 'loaded' }
-          threads.each {|thread| thread.join }
+          uploader = Thread.start{ puts 'uploading';@host.upload test_cases.path, tmpdir; puts 'uploaded.' }
+          test_cases.load
+          test_cases.each do |test_case|
+            test_case.parse!
+          end
+
+          uploader.join
 
           results = self.class.results_array.new()
           deployed = {}
@@ -102,7 +105,7 @@ module TestBench
             result.save
             results << result
           end
-        rescue
+        ensure
           @host.delete tmpdir
         end
         results
