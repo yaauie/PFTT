@@ -4,7 +4,17 @@ module Host
   class Local < Base
     instantiable 'local'
 
+    def to_s
+      'Localhost'
+    end
+        
+    def alive?
+      true
+    end
+
     def exec command, opts={}
+      @cwd = nil # clear cwd cache
+
       #puts %Q{running> #{command}}
       wrap! command unless ( opts.delete(:nowrap) || false )
       watcher = Thread.start do
@@ -18,6 +28,8 @@ module Host
           end
           raise $!
         end
+
+        @cwd = nil # clear cwd cache a 2nd time (in case it was set in another thread)
       end
     end
 
@@ -61,7 +73,8 @@ module Host
       end.compact
     end
 
-    def glob spec, &block
+    def glob path, spec, &block
+      spec = join(path, spec)
       make_absolute! spec
       Dir.glob spec, &block
     end

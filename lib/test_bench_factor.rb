@@ -49,13 +49,16 @@ module TestBenchFactor
     return @properties.merge! arg if arg.is_a? Hash
     return properties[arg]
   end
-
+$depth = 0
+    
   def properties deep=true
     @properties ||= {}
     return @properties unless deep
     if self.is_a? Class
       props={}
       self.ancestors.to_a.reverse_each do |ancestor|
+        raise 'die die die' if ($depth+=1) >= 20
+        puts ancestor.inspect
         next unless ancestor.respond_to? :properties
         props.merge! ancestor.properties(false)
       end

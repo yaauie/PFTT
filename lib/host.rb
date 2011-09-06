@@ -40,57 +40,89 @@ module Host
 
     def windows?
       # avoids having to check for c:\windows|c:\winnt if we've already found /usr/local
-      @is_windows ||= ( !posix? and ( exist? "C:\\Windows" or exist? "C:\\WinNT" ) )
+      true #@is_windows ||= ( !posix? and ( exist? "C:\\Windows" or exist? "C:\\WinNT" ) )
     end
 
     def posix?
-      @posix ||= self.properties[:platform] == :posix
+      false #@posix ||= self.properties[:platform] == :posix
     end
 
-    def make_absolute! *paths
+    # executes command or program on the host
+    #
+    # can be a DOS command, Shell command or a program to run with options to pass to it
+    def cmd! cmdline
+      if windows?
+        cmdline = "CMD /C #{cmdline}"
+      end
+      return exec!(cmdline)
+    end
+    
+    # executes command using cmd! returning the first line of output (STDOUT) from the command,
+    # with the new line character(s) chomped off
+    def line! cmdline
+      cmd!(cmdline)[0].chomp
+    end
+
+   def make_absolute! *paths
       paths.map do |path|
         #escape hatch for already-absolute windows paths
-        return path if !posix? && path =~ /\A[A-Za-z]:\// 
+        return path if windows? && path =~ /\A[A-Za-z]:\// 
         
         path.replace( File.absolute_path( path, cwd ) )
         path
       end
     end
-
-    # caching this is dangerous, since we can change this pretty easily with exec,
-    # but because we have to shell out *every time* we want to get this, it needs to
-    # be cached somehow.
-    def cwd 
-      @cwd ||= [case
-      when posix? then exec!('pwd')[0]
-      else exec!(%Q{CMD /C ECHO %CD%}, :nowrap => true)[0].gsub(/\r?\n\Z/,'')
-      end]
-      @cwd.last
+        
+    # changes the current working directory 
+    def cd path, hsh
+      make_absolute! path
+      if not path
+        # popd may have been called when @dir_stack empty
+        raise "path not specified"
+      end
+      # e-z, same command on posix and windows
+      cmd!("cd \"#{path}\"")
+      
+      # @cwd is cleared at start of exec, so while in exec, @cwd will be empty unless cwd() called in another thread
+      @cwd = path
+      
+      @dir_stack.clear unless hsh.delete(:no_clear) || false
+      
+      return path
     end
-
+    
     def pushd path
-      cwd if @cwd.nil?
-      @cwd.push path
+      cd(path, {:no_clear=>true})
+      @dir_stack.push(path)
     end
-
+    
     def popd
-      cwd if @cwd.nil?
-      raise Exception, %q{er, you can't popd any further; stack empty} if @cwd.length <= 1
-      @cwd.pop
+      cd(@dir_stack.pop, {:no_clear=>true})
     end
-
+    
+    def peekd
+      @dir_stack.last
+    end
+    
+    def join *path_array
+      path_array.join(separator)
+    end
+    
+    # returns the directory path separator character for the host platform
+    def separator
+      if windows?
+        return '\\'
+      else
+        return '/'
+      end  
+    end
+    
+    # deletes the given file, directory or matching glob pattern
     def delete glob_or_path
-      make_absolute! glob_or_path
-      glob( glob_or_path ) do |path|
-        raise Exception unless sane? path
-        if directory? path
-          exec! case
-          when posix? then %Q{rm -rf "#{path}"}
-          else %Q{CMD /C RMDIR /S /Q "#{path}"}
-          end
-        else
-          _delete path #implementation specific
-        end
+      if directory?(p)
+       _delete_glob(p, '')
+      else
+        _delete_glob(cwd, glob_or_path)
       end
     end
 
@@ -104,18 +136,21 @@ module Host
       end
     end
 
+    # makes the given directory if it is not already a directory (if it is, this fails silently)
     def mkdir path
       make_absolute! path
       parent = File.dirname path
       mkdir parent unless directory? parent
-      _mkdir path
+      if not directory? path
+        _mkdir path
+      end
     end
 
     def mktmpdir path
       make_absolute! path
       tries = 10
       begin
-        dir = File.join( path, String.random(16) )
+        dir = join( path, String.random(16) )
         raise 'exists' if directory? dir
         mkdir dir
       rescue
@@ -140,6 +175,22 @@ module Host
       # create a way for a class to register itself as instantiable by the Factory function
       def instantiable name
         Host.hosts.merge! name => self
+      end
+    end
+
+    private
+
+    def _delete_glob p, q
+      make_absolute! p
+      glob(p, q ) do |path|
+        raise Exception unless sane? path
+        if directory? path
+          cmd! case
+          when posix? then %Q{rm -rf \""#{path}\""}
+          else %Q{RMDIR /S /Q \""#{path}\""}
+          end
+        end
+        _delete path #implementation specific
       end
     end
   end

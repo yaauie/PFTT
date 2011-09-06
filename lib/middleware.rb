@@ -30,6 +30,7 @@ module Middleware
     end
 
     def _deploy_php_bin
+      # TODO ensure directory pftt-phps exists
       @deployed_php ||= File.join('/pftt-phps',@php_build[:version])
       puts "uploading..."
       @host.upload(@php_build.path,@deployed_php) unless @host.exist? @deployed_php

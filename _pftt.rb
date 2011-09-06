@@ -165,22 +165,44 @@ $middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
 $fs_contexts = Context::FileSystem::All.filter(CONFIG[:context,:filesystem,:filters])
 $cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 
-case CONFIG[:action].to_s
-when 'functional'
-  puts CONFIG[:phpt].map{|i|i.convert_path}.inspect
-  $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }.flatten
-  r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
-  puts 'PASS: '+r.pass.to_s
-  puts 'FAIL: '+r.fail.to_s
-  puts 'RATE: '+r.rate.to_s+'%'
-when 'inspect'
-  puts 'HOSTS:'
-  puts $hosts
-  puts 'PHP BUILDS:'
-  puts $phps
-  puts 'MIDDLEWARES:'
-  puts $middlewares
-else
-  puts 'An action must be specified: --func[tional] --perf[ormance]'
-  exit
-end
+# NOTE: get php binary snapshots from: http://windows.php.net/qa/
+# NOTE: get php tests from: http://www.php.net/svn.php
+# NOTE: recommend getting Console2 from http://sourceforge.net/projects/console/ instead of Windows cmd.exe
+#
+# example run:
+#
+# C:\Users\v-mafick\Desktop\PFTT2\PFTT>ruby _pftt.rb --func --phpt-tests pftt-phps\5.4.0
+#
+  
+if __FILE__ == $0
+  case CONFIG[:action].to_s
+  when 'functional'
+    if not CONFIG[:phpt]
+      puts "PFTT: you must supply --phpt-tests argument with --func argument!"
+      puts "PFTT: --phpt-tests [directory] - path to directory structure containing .phpt files/tests"
+      puts "PFTT: suggestion: do 'rake get_newest_tests' to install PHP tests"
+      exit(4)
+    end
+    puts CONFIG[:phpt].map{|i|i.convert_path}.inspect
+    $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }.flatten
+    r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
+    puts ' == Test Run Summary == '
+    puts 'PASS: '+r.pass.to_s
+    puts 'FAIL: '+r.fail.to_s
+    puts 'RATE: '+r.rate.to_s+'%'
+  when 'inspect'
+    # TODO show phpt tests here too? if yes, include 'rake get_newest_tests' suggestion
+    puts 'HOSTS:'
+    puts $hosts
+    # TODO if no php builds, suggest user do 'rake get_newest_php'
+    puts 'PHP BUILDS:'
+    puts $phps
+    puts 'MIDDLEWARES:'
+    puts $middlewares
+    # ensure user will have local-host and cli-middleware, if no other hosts or middlewares are specified.
+  else
+    puts 'PFTT: An action must be specified: --func[tional] --perf[ormance] --inspect'
+    exit
+  end
+end # if
+
