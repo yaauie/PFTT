@@ -167,8 +167,7 @@ $cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 
 case CONFIG[:action].to_s
 when 'functional'
-  puts CONFIG[:phpt].map{|i|i.convert_path}.inspect
-  $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }.flatten
+  $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }
   r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
   puts 'PASS: '+r.pass.to_s
   puts 'FAIL: '+r.fail.to_s

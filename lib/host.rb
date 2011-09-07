@@ -20,7 +20,23 @@ module Host
     end
 
     def wrap command
-      %Q{pushd #{cwd} > /dev/null 2>&1 && #{command} && popd > /dev/null 2>&1}
+      %Q{#{silence('pushd '+format_path(cwd))} && #{command} && #{silence 'popd'}}
+    end
+
+    def silence_stderr str
+      %Q{#{str} 2> #{devnull}}
+    end
+
+    def silence_stdout str
+      %Q{#{str} > #{devnull}}
+    end
+
+    def silence str
+      %Q{#{str} > #{devnull} 2>&1}
+    end
+
+    def devnull
+      posix? ? '/dev/null' : 'NUL'
     end
 
     def initialize opts={}
@@ -54,6 +70,13 @@ module Host
         
         path.replace( File.absolute_path( path, cwd ) )
         path
+      end
+    end
+
+    def format_path path
+      case
+      when windows? then path.gsub('/','\\')
+      else path
       end
     end
 
@@ -97,7 +120,8 @@ module Host
     def escape(str)
       if !posix?
         s = str.dup
-        s.replace %Q{"#{s}"} unless s.gsub!(/([>&^"])/,'\\\\\1').nil?
+        s.replace %Q{"#{s}"} unless s.gsub!(/(["])/,'\\\\\1').nil?
+        s.gsub!(/[\^&|><]/,'^\\1')
         s
       else
         raise NotImplementedYet
