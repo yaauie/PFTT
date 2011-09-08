@@ -6,7 +6,7 @@ module Host
 
     def exec command, opts={}
       wrap! command unless ( opts.delete(:nowrap) || false )
-      puts %Q{running> #{command}}
+      #puts %Q{running> #{command}}
       watcher = Thread.start do
         retries = 3
         begin
