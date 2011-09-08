@@ -207,15 +207,40 @@ def PhptTestCase::Error
 end
 
 class PhptTestCase::Array < TypedArray(PhptTestCase)
+  # path is split into a base and a testcase search pattern.
+  # 
+  # - all path items after a directory self-reference ( `./` ) become 
+  #   part of the testcase search pattern. The self-reference is then 
+  #   stripped.
+  # 
+  # - a path item that contains glob-type search patterns becomes part
+  #   of the testcase search pattern; all subsequent path items are also
+  #   a part of the search pattern
+  # 
+  # - If no glob-style search pattern is supplied, `**/*.phpt` is assumed.
+  # 
   def initialize ( path, name, hsh={} )
     puts "new PhptTestCase::Array: #{path}"
     @path = path.gsub('\\','/')
     @name = name
+    
+    # split into the base plus the search
+    parts = {:base => [],:path => [],:glob => []}
+    part = :base
+    @path.split('/').each do |sub_path|
+      next ( part = :path ) if sub_path == '.'
+      part = :glob if sub_path =~ /[\*\[\]\?]/
+      parts[part] << sub_path
+    end
+    parts[:glob] = ['**','*.phpt'] if parts[:glob].empty?
+
+    @path = parts[:base].join('/')
+    @tests = (parts[:path]+parts[:glob]).join('/')
   end
   attr_reader :path
 
   def load
-    Dir.glob( File.join( @path, '**/*.phpt' ) ).each do |file|
+    Dir.glob( File.join( @path, @tests ) ).each do |file|
       self << PhptTestCase.new( file, self )
     end
   end

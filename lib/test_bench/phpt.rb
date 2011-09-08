@@ -31,10 +31,11 @@ module TestBench
 
           # parse all the phpt's and upload the files at the same time.
           uploader = Thread.start{ puts 'uploading';@host.upload test_cases.path, tmpdir; puts 'uploaded.' }
-          test_cases.load
+          test_cases.load if test_cases.empty? 
           test_cases.each do |test_case|
             test_case.parse!
           end
+          puts %Q{selected #{test_cases.size} test cases}
 
           uploader.join
 
