@@ -24,8 +24,14 @@ class PhpBuild
     properties.merge(requirements)[k]
   end
 
-  def describe()
-    File.basename(path)
+  def describe(*args)
+    return File.basename(path) if args.empty?
+    args.map do |prop|
+      case prop
+      when :threadsafety then ( properties[:threadsafe] ? 'ts' : nil )
+      else properties[prop]
+      end
+    end.compact.join('-')
   end
 
   protected

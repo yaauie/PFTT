@@ -49,7 +49,7 @@ module TestBench
         %Q{#{@php.properties[:version]}-#{DateTime.now.strftime('%Y%m%d-%H%M%S')}},
         @middleware.describe,
         @host.describe,
-        @php.describe
+        @php.describe( :branch, :threadsafety, :compiler )
       ].compact
     end
 
