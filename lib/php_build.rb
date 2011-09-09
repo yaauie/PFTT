@@ -35,7 +35,7 @@ class PhpBuild
     
     requirement :platform => !parts.select{|i| i =~/(Win32|windows)/ }.empty? ? :windows : :posix
 
-    branchinfo = parts.select{|i| i =~ /[0-9]\.[0-9]+/ }.first
+    branchinfo = parts.select{|i| i =~ /(?:[0-9]\.[0-9]+|trunk)/ }.first
 
     property :php_branch => branchinfo.split('.').first(2).join('.')
     property :php_version_major => branchinfo.split('.').first.to_i
