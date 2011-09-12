@@ -8,6 +8,14 @@ class String
   end
 end
 
+# TODO --debug to call host.debug
+#     method debug(cmdline) in class Host executeds command within windbg on Windows or gdb on Linux (on host)
+#     --symbols provides directories for .pdb symbols to pass to windbg
+#     --source provides source code to pass to windbg
+# TODO --create-bug-report which generates a bug report for given test
+#     --create-repro-script creates repro script for given PHPT func test
+#     --create-minidump
+
 class PfttOptions
   
   def self.parse(args)
@@ -165,21 +173,40 @@ $middlewares = Middleware::All.filter(CONFIG[:middleware,:filters])
 $fs_contexts = Context::FileSystem::All.filter(CONFIG[:context,:filesystem,:filters])
 $cache_contexts = Context::Cache::All.filter(CONFIG[:context,:cache,:filters])
 
-case CONFIG[:action].to_s
-when 'functional'
-  $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }
-  r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
-  puts 'PASS: '+r.pass.to_s
-  puts 'FAIL: '+r.fail.to_s
-  puts 'RATE: '+r.rate.to_s+'%'
-when 'inspect'
-  puts 'HOSTS:'
-  puts $hosts
-  puts 'PHP BUILDS:'
-  puts $phps
-  puts 'MIDDLEWARES:'
-  puts $middlewares
-else
-  puts 'An action must be specified: --func[tional] --perf[ormance]'
-  exit
+# NOTE: recommend getting Console2 from http://sourceforge.net/projects/console/ instead of Windows cmd.exe
+#
+# example run:
+#
+# pftt --func --phpt-tests pftt-phps\5.4.0
+#
+  
+if __FILE__ == $0
+  case CONFIG[:action].to_s
+  when 'functional'
+    if not CONFIG[:phpt]
+      puts "PFTT: you must supply --phpt-tests argument with --func argument!"
+      puts "PFTT: --phpt-tests [directory] - path to directory structure containing .phpt files/tests"
+      puts "PFTT: suggestion: do 'rake get_newest_tests' to install PHP tests"
+      exit(4)
+    end
+    $testcases = CONFIG[:phpt].map{|pth| PhptTestCase::Array.new( pth, %Q{#{File.basename(pth)}-#{String.random(6)}} ) }
+    r = TestBench::Phpt.iterate( $phps, $hosts, $middlewares, $testcases )
+    puts ' == Test Run Summary == '
+    puts 'PASS: '+r.pass.to_s
+    puts 'FAIL: '+r.fail.to_s
+    puts 'RATE: '+r.rate.to_s+'%'
+  when 'inspect'
+    # TODO show phpt tests here too? if yes, include 'rake get_newest_tests' suggestion
+    puts 'HOSTS:'
+    puts $hosts
+    # TODO if no php builds, suggest user do 'rake get_newest_php'
+    puts 'PHP BUILDS:'
+    puts $phps
+    # ensure user will have local-host and cli-middleware, if no other hosts or middlewares are specified.
+    puts 'MIDDLEWARES:'
+    puts $middlewares
+  else
+    puts 'An action must be specified: --func[tional] --perf[ormance] --inspect'
+    exit
+  end
 end

@@ -135,3 +135,25 @@ desc "Downloads newest PHP Binary from PHP.net"
 task :get_newest_php do
   # TODO
 end
+
+desc "enables calling PFTT through a Rakefile"
+task :pftt do
+  # TODO
+end
+
+#SET source_dir=%~1
+#
+#REM svn update
+#
+## TODO if no args, assume --disable-zts
+#
+#CD %source_dir%
+#buildconf
+#
+#REM --enable-debug-pack and make all will produce the .pdb symbol files
+#REM --disable-zts will create a non-thread-safe build
+#
+#REM % pass any other config options
+#configure --disable-all --enable-debug-pack --enable-cli --disable-zts %2
+#
+#make all
