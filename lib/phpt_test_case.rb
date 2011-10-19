@@ -1,3 +1,9 @@
+
+# NOTE: you can add a --PFTT-- section to your PHPT file and store options. those options
+#       will be read into the corresponding PhptTestCase instance
+# NOTE: check for IS_PFTT environment variable in a PHPT test to tell if its being run
+#       by PFTT instead of run-tests.php (make test)
+
 class PhptTestCase
 
   include TestBenchFactor
@@ -13,27 +19,66 @@ class PhptTestCase
       [:credit,:credits],
       [:ini],
       [:skipif],
-      [:clean]
+      [:description],
+      # LATER implement support for these other sections
+      [:clean],
+      [:request],
+      [:post], [:post_raw], [:gzip_post], [:deflate_post], [:get],
+      [:cookie],
+      [:stdin],
+      [:headers],
+      [:cgi],
+      # LATER support for expected failure
+      [:xfail],
+      [:expectheaders],
+      [:args], [:env],
+      # LATER I think pdo_mysql tests depend on this section (to run pdo tests)
+      [:redirecttest]
     ]
   }
 
-  attr_reader :phpt_path
+  attr_reader :phpt_path, :dir
 
-  def initialize( path, set=nil )
+  def initialize( dir, path, set=nil )
     if !File.exists?( path ) 
       raise 'File not found: ['+path+']'
     end
+    @dir = dir
     @phpt_path = path
     @set = set
   end
+  attr_accessor :scn_list
   attr_reader :set
 
   def name
     @name ||= File.basename @phpt_path, '.phpt'
   end
+  
+  def full_name
+    test_case_name = @phpt_path
+    if test_case_name.starts_with?(@dir)
+      test_case_name = test_case_name[@dir.length+1, test_case_name.length]
+    end
+    return test_case_name
+  end
+  
+  def ext_name
+    test_case_name = full_name
+                
+    test_module = test_case_name
+    # turn test case names like ext/date/tests/bug12345 into ext/date
+    if test_module.starts_with?('ext/')
+      i = test_module.index('/', 'ext/'.length+1)
+            
+      if i > 0
+        test_module = test_module[0, i]
+      end
+    end
+    return TypedToken::StringToken::ExtName.new(test_module)
+  end
 
   def relative_path
-    @relative_path ||= File.relative( phpt_path, (set.nil? ? nil : set.path ) )
+    full_name # LATER
   end
 
   def description
@@ -94,7 +139,7 @@ class PhptTestCase
   end
 
   def has_section? section
-    return parts.has_key? section
+    return parts.has_key?(section)
   end
 
   def save_section( section, path, extension=section.to_s )
@@ -114,7 +159,7 @@ class PhptTestCase
   end
 
   def files
-    # TODO: supporting files:
+    # supporting files:
     case
     when nil 
     # scenario 1: options[:support_files]
@@ -141,15 +186,15 @@ class PhptTestCase
     parts.inspect
   end
 
-  def raw
-    @raw ||= IO.read(@phpt_path)
+  def raw(deploy_dir)
+    @raw ||= IO.read(File.join(deploy_dir, full_name))
   end
 
-  def parse!
+  def parse!(deploy_dir)
     reset!
     @result_tester = nil
     section = :none
-    raw.lines do |line|
+    raw(deploy_dir).lines do |line|
       if line =~ /^--(?<section>[A-Z_]+)--/
         section = Regexp.last_match[:section].downcase.to_sym
         @parts[section]=''
@@ -207,41 +252,73 @@ def PhptTestCase::Error
 end
 
 class PhptTestCase::Array < TypedArray(PhptTestCase)
-  # path is split into a base and a testcase search pattern.
-  # 
-  # - all path items after a directory self-reference ( `./` ) become 
-  #   part of the testcase search pattern. The self-reference is then 
-  #   stripped.
-  # 
-  # - a path item that contains glob-type search patterns becomes part
-  #   of the testcase search pattern; all subsequent path items are also
-  #   a part of the search pattern
-  # 
-  # - If no glob-style search pattern is supplied, `**/*.phpt` is assumed.
-  # 
-  def initialize ( path, name, hsh={} )
-    puts "new PhptTestCase::Array: #{path}"
-    @path = path.gsub('\\','/')
-    @name = name
-    
-    # split into the base plus the search
-    parts = {:base => [],:path => [],:glob => []}
-    part = :base
-    @path.split('/').each do |sub_path|
-      next ( part = :path ) if sub_path == '.'
-      part = :glob if sub_path =~ /[\*\[\]\?]/
-      parts[part] << sub_path
-    end
-    parts[:glob] = ['**','*.phpt'] if parts[:glob].empty?
-
-    @path = parts[:base].join('/')
-    @tests = (parts[:path]+parts[:glob]).join('/')
-  end
   attr_reader :path
-
-  def load
-    Dir.glob( File.join( @path, @tests ) ).each do |file|
-      self << PhptTestCase.new( file, self )
+  def initialize ( phpt_dir, test_names=[] )
+    phpt_dir.convert_path! # critical - don't mix \ with / (used later)
+    
+    @selected = []
+                  
+    # remove duplicate directories from the list of dirs to check
+    paths = []
+    if phpt_dir.is_a?(String)
+      paths = [phpt_dir]
+    else
+      phpt_dir.map{|path|
+        path = File.absolute_path(path)
+        unless paths.include?(path)
+          paths.push(path)
+        end
+      }
     end
+    
+    # search each directory for PHPT files
+    paths.map{|path|
+      Dir.glob( File.join( path, '**/*.phpt' ) ).each do |files|
+        if test_names != nil and test_names.length > 0
+          test_names.each{|test_name|
+            if files.is_a?(Array)
+              files.each{|file|
+                if file.include?(test_name)
+                  add_selected_file(path, file)
+                end
+              }
+            elsif files.include?(test_name)
+              add_selected_file(path, files)
+            end
+          }
+        else
+          add_selected_file(path, files)
+        end
+      end
+    } 
+    @selected = nil
+    self
   end
+  
+  class DuplicateTestError < StandardError
+  end
+  
+  private
+  
+  def add_selected_file(dir, file)
+    file = File.absolute_path(file)
+    if file.starts_with?(dir)
+      file = file[dir.length+1...file.length]
+    end
+    if @selected.include?(file)
+      # since there are no duplicate directories, we know that two different directories
+      # have the same test (error out to avoid confusion)
+      #
+      raise DuplicateTestError
+    end
+    # don't look in folders named 'Release' or 'Release_TS' because those folders
+    # may be inside the php dir
+    # and Release or Release_TS may contain duplicate PHPTs!
+    if file.starts_with?('Release') or file.starts_with?('Release_TS')
+      return
+    end
+    @selected.push(file)
+    push(PhptTestCase.new( dir, File.join(dir, file), self ))
+  end
+
 end

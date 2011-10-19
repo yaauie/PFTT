@@ -1,3 +1,5 @@
+
+# TODO delete
 module LumberJack
   class Logger
     @@logs = []

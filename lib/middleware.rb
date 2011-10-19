@@ -9,7 +9,12 @@ module Middleware
       All << self
     end
 
-    attr_accessor :docroot
+    attr_accessor :docroot, :host
+    attr_accessor :deployed_php
+    
+    def close
+      @host.close
+    end
 
     #def ini(arg=nil)
       #ret = super
@@ -19,37 +24,63 @@ module Middleware
     #end
 
     # now start defining our base
-    def initialize( host, php_build, *contexts )
+    def initialize( host, php_build, scenarios )
       @host = host
       @php_build = php_build
-      @contexts = contexts.each{|context_klass| context_klass.new( host, self, php_build )}
+      @scenarios = scenarios
     end
-
+    
     def describe
       @description ||= self.class.to_s.downcase.gsub('::','-')
     end
 
     def _deploy_php_bin
-      @deployed_php ||= File.join('/pftt-phps',@php_build[:version])
-      puts "uploading..."
-      @host.upload(@php_build.path,@deployed_php) unless @host.exist? @deployed_php
-      puts "uploaded!"
+      
+      # ask scenarios for the folder to deploy PHP to
+      deploy_to = nil
+      @scenarios.map{|scn_type, scn| deploy_to||= scn.deployed_php(self) }
+      
+      unless deploy_to
+        # fallback on storing php in a sub-folder in %SYSTEMDRIVE%/PFTT-PHPs or ~/PFTT-PHPs
+        if @host.windows?
+          deploy_to = @host.systemdrive+"/PFTT-PHPs"
+        else
+          deploy_to = '~/PFTT-PHPs'
+        end
+      end
+      
+      # ensure folder exists
+      @host.mkdir(deploy_to)
+      
+      # if $force_deploy, make a new directory! otherwise, reuse existing directory (for quick manual testing can't take the time
+      #          to copy everything again)
+      @deployed_php ||= @host.join(deploy_to, ( @php_build[:version] + ( $force_deploy ? '_'+String.random(4) : '' ) ) )
+      
+      #
+      if $force_deploy or not File.exists?(php_binary()) or File.mtime(@php_build.path) >= File.mtime(php_binary())
+        puts "uploading... "+@deployed_php
+        @host.upload(@php_build.path,@deployed_php) unless @host.exist? @deployed_php
+        puts "uploaded!"
+      else
+        puts "PFTT: reusing deployed php: #{@deployed_php}"
+      end
+      
       @deployed_php 
     end
 
     def _undeploy_php_bin
-      #@host.delete( @deployed_php )
+      if $force_deploy
+       @host.delete( @deployed_php )
+      end
     end
 
-    def install()
+    def install r=nil
       _deploy_php_bin
-      @contexts.each{|context| context.up }
-      apply_ini
+      apply_ini(@current_ini)
     end
 
-    def uninstall()
+    def uninstall r=nil
       _undeploy_php_bin
-      @contexts.reverse_each{|context| context.down }
       unset_ini
     end
 
@@ -80,16 +111,24 @@ module Middleware
       end
     end
 
-    # the base_ini is the culumnation of all applied ini in middleware, host, php, and contexts.
+    # the base_ini is the culumnation of all applied ini in middleware, host, php, and scenarios.
     def base_ini
       if @base_ini.nil?
         @base_ini = PhpIni.new()
-        [@host,self,@php,@contexts].flatten.each do |factor|
+        [@host,self,@php].flatten.each do |factor|
           next unless factor.respond_to? :ini
           @base_ini << factor.ini
         end
       end
       PhpIni.new @base_ini
+    end
+    
+    def root r=nil
+      if r
+        return r
+      else 
+        return @host.systemdrive
+      end
     end
 
     def unset_ini
@@ -102,8 +141,7 @@ module Middleware
 
     ini <<-INI
       display_startup_errors=0
-      output_handler=
-      open_basedir=
+      output_handler=      
       safe_mode=0
       disable_functions=
       output_buffering=Off
@@ -113,8 +151,7 @@ module Middleware
       html_errors=0
       track_errors=1
       report_memleaks=1
-      report_zend_debug=0
-      docref_root=
+      report_zend_debug=0      
       docref_ext=.html
       error_prepend_string=
       error_append_string=
@@ -123,6 +160,7 @@ module Middleware
       magic_quotes_runtime=0
       ignore_repeated_errors=0
       precision=14
+      date.timezone = 'UTC'
       unicode.runtime_encoding=ISO-8859-1
       unicode.script_encoding=UTF-8
       unicode.output_encoding=UTF-8

@@ -24,12 +24,13 @@ class PhpIni
   # while this isn't strictly kosher, it *does* append a directive like its Array counterpart
   # and is a lot easier to type.
   alias :<< :configure
+  alias :insert :configure
 
   def + other_ini
     (new_ini = self.clone).configure other_ini
     new_ini
   end
-
+  
   def clone
     PhpIni.new( self )
   end

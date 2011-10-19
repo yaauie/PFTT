@@ -15,6 +15,7 @@
 module TestBenchFactor
   def results
     @_results ||= TestResult::Array.new
+
   end
 
   def attach_result result
@@ -49,7 +50,7 @@ module TestBenchFactor
     return @properties.merge! arg if arg.is_a? Hash
     return properties[arg]
   end
-
+  
   def properties deep=true
     @properties ||= {}
     return @properties unless deep

@@ -15,14 +15,30 @@ module Host
     include TestBenchFactor
     include PhpIni::Inheritable
 
-    def wrap! command
-      command.replace( wrap command )
+    def systemdrive
+      if posix?
+        return '/'
+      elsif @_systemdrive
+        return @_systemdrive
+      else
+        @_systemdrive = line!('echo %SYSTEMDRIVE%').gsub(/\"/, '')
+        return @_systemdrive
+      end
     end
-
-    def wrap command
-      %Q{#{silence('pushd '+format_path(cwd))} && #{command} && #{silence 'popd'}}
+    
+    def write(string, path)
+      f = open_file(path, 'wb')
+      f.puts(string)
+      f.close()
     end
-
+    
+    def read(path)
+      f = open_file(path, 'rb')
+      out = f.gets()
+      f.close()
+      return out
+    end
+    
     def silence_stderr str
       %Q{#{str} 2> #{devnull}}
     end
@@ -38,12 +54,48 @@ module Host
     def devnull
       posix? ? '/dev/null' : 'NUL'
     end
+    
+    def has_debugger?
+      return debugger != nil
+    end
+    
+    def debug_wrap cmd_line
+      dbg = self.debugger
+      if dbg
+        if posix?
+          return dbg+" --args "+cmd_line
+        elsif windows?
+          return dbg+" "+cmd_line
+        end
+      end
+      return cmd_line
+    end
+    
+    def debugger
+      if posix?
+        return 'gdb'
+      elsif windows?
+        # windbg must be the x86 edition (not x64) because php is only compiled for x86
+        if exists? '%ProgramFiles(x86)%\\Debugging Tools For Windows (x86)\windbg.exe'
+          return '%ProgramFiles(x86)%\\Debugging Tools For Windows (x86)\windbg.exe'
+        elsif exists? '%ProgramFiles(x86)%\\Debugging Tools For Windows\windbg.exe'
+          return '%ProgramFiles(x86)%\\Debugging Tools For Windows\windbg.exe'
+        elsif exists? '%ProgramFiles%\\Debugging Tools For Windows (x86)\windbg.exe'
+          return '%ProgramFiles%\\Debugging Tools For Windows (x86)\windbg.exe'
+        elsif exists? '%ProgramFiles%\\Debugging Tools For Windows (x86)\windbg.exe'
+          return '%ProgramFiles%\\Debugging Tools For Windows (x86)\windbg.exe'
+        end
+      end
+      return nil # signal that host has no debugger
+    end
 
     def initialize opts={}
       #set the opts as properties in the TestBenchFactor sense
       opts.each_pair do |key,value|
         property key => value
       end
+      
+      @dir_stack = []
     end
 
     def describe
@@ -53,7 +105,23 @@ module Host
     def exec! *args
       exec(*args).value
     end
-
+    
+    # executes command or program on the host
+    #
+    # can be a DOS command, Shell command or a program to run with options to pass to it
+    def cmd! cmdline
+      if windows?
+        cmdline = "CMD /C #{cmdline}"
+      end
+      return exec!(cmdline)
+    end
+        
+    # executes command using cmd! returning the first line of output (STDOUT) from the command,
+    # with the new line character(s) chomped off
+    def line! cmdline
+      cmd!(cmdline)[0].chomp
+    end
+    
     def windows?
       # avoids having to check for c:\windows|c:\winnt if we've already found /usr/local
       @is_windows ||= ( !posix? and ( exist? "C:\\Windows" or exist? "C:\\WinNT" ) )
@@ -65,8 +133,16 @@ module Host
 
     def make_absolute! *paths
       paths.map do |path|
+        unless path.start_with?('c:/') and path.start_with?('C:/')
+          path = "C:/Users/v-mafick/Desktop/sf/workspace/PFTT/#{path}"
+        end
+        return path
+      end
+      return paths # TODO temp
+      paths.map do |path|
         #escape hatch for already-absolute windows paths
-        return path if !posix? && path =~ /\A[A-Za-z]:\// 
+        # TODO temp return path if !posix? && path =~ /\A[A-Za-z]:\//
+        return path if path =~ /\A[A-Za-z]:\//  
         
         path.replace( File.absolute_path( path, cwd ) )
         path
@@ -76,33 +152,37 @@ module Host
     def format_path path
       case
       when windows? then path.gsub('/','\\')
-      else path
+      else path.gsub('\\', '/')
       end
     end
 
-    # caching this is dangerous, since we can change this pretty easily with exec,
-    # but because we have to shell out *every time* we want to get this, it needs to
-    # be cached somehow.
-    def cwd 
-      @cwd ||= [case
-      when posix? then exec!('pwd')[0]
-      else exec!(%Q{CMD /C ECHO %CD%}, :nowrap => true)[0].gsub(/\r?\n\Z/,'')
-      end]
-      @cwd.last
-    end
-
     def pushd path
-      cwd if @cwd.nil?
-      @cwd.push path
+      cd(path, {:no_clear=>true})
+      @dir_stack.push(path)
     end
-
+    
     def popd
-      cwd if @cwd.nil?
-      raise Exception, %q{er, you can't popd any further; stack empty} if @cwd.length <= 1
-      @cwd.pop
+      cd(@dir_stack.pop, {:no_clear=>true})
+    end
+    
+    def peekd
+      @dir_stack.last
+    end
+    
+    def separator
+      if windows?
+        return "\\"
+      else
+        return '/'
+      end
+    end
+    
+    def join *path_array
+      path_array.join(separator)
     end
 
     def delete glob_or_path
+      return true # TODO temp
       make_absolute! glob_or_path
       glob( glob_or_path ) do |path|
         raise Exception unless sane? path
@@ -132,14 +212,14 @@ module Host
       make_absolute! path
       parent = File.dirname path
       mkdir parent unless directory? parent
-      _mkdir path
+      _mkdir path unless directory? path
     end
 
     def mktmpdir path
       make_absolute! path
       tries = 10
       begin
-        dir = File.join( path, String.random(16) )
+        dir = File.join( path, String.random(4) )
         raise 'exists' if directory? dir
         mkdir dir
       rescue
@@ -151,11 +231,11 @@ module Host
 
     def sane? path
       make_absolute! path
-      insane = case
+      insane = case        
       when posix?
-        /\A\/(bin|var|etc|dev|Windows)\Z/
+        /\A\/(bin|var|etc|dev|usr)\Z/
       else
-        /\AC:(\/(Windows)?)?\Z/
+        /\A[A-Z]:(\/(Windows)?)?\Z/
       end =~ path
       !insane
     end
@@ -186,9 +266,9 @@ module Host
       else
         config.merge! YAML::load( File.open path )
       end
-      config.each_pair do |name,spec|
-        self << Host::Factory( spec.merge(:name=>name) )
-      end
+# TODO       config.each_pair do |name,spec|
+#          self << Host::Factory( spec.merge(:name=>name) )
+#        end
       self
     end
   end

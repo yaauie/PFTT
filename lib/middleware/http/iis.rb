@@ -1,24 +1,47 @@
 module Middleware
   module Http
     module IIS
-      class Base < Base
-        requirement :platform => :windows
-        def docroot;'C:/inetpub/wwwroot/';end
-        def app_cmd args
-          @host.exec! "C:/%WINDIR%/System32/inetsrv/appcmd #{args}"
+      # TODO requirement :platform => :windows
+      class IisBase < HttpBase
+        
+        def initialize(*args)
+          super(*args)
+          @running = false
+          self
+        end
+        
+        def docroot r=nil
+          root(r) + '/inetpub/wwwroot/'
+        end
+                      
+        # LATER NOTE root(r) and @host both handle files, possibly on remote hosts
+        #       but they are two different interfaces to two different systems of handling that
+        #       root(r) goes through T:/ or other mounted network drive (SMB)
+        #       while @host goes through SSH and executes the operation locally on the remote computer
+        def appcmd args
+          @host.exec! "%SYSTEMROOT%/System32/inetsrv/appcmd #{args}"
+        end
+              
+        def start!
+          # ensure Apache is stopped
+          @host.exec! 'net stop Apache2.2'
+          
+          # then start IIS
+          @host.exec! 'net start w3svc'
+          
+          @running = true
         end
 
-        def start!
-          @host.exec! 'net start w3svc'
-        end
         def stop!
-          @host.exec! 'net start w3svc'
+          @host.exec! 'net stop w3svc'
+          @running = false
         end
-        def restart!
-          stop! unless !runing?
-          start!
+        
+        def running?
+          @running
         end
+                      
       end
     end
-  end 
+  end
 end
